@@ -1,79 +1,78 @@
-# CodeWhiskers 😺
+# 🐱 WhiskerCode
 
-CodeWhiskers is a VS Code extension that helps developers quickly understand unfamiliar code through intuitive explanations, visualizations, and contextual insights. The extension uses a cute, kitten-themed UI with "whiskers" that represent how the tool analyzes and explores code structure.
+WhiskerCode is your feline companion for code understanding and optimization. This VS Code extension brings intuitive code analysis and explanation features with a delightful kitten-themed UI.
 
-## 🐱 CodeWhiskers
+## ✨ Features
 
-## Features
+### 🔍 Code Understanding
+- **Smart Code Explanation**: Get natural language explanations of selected code snippets
+- **Variable Tracing**: Track variable usage and modifications throughout your code
+- **Function Analysis**: Understand function behavior, parameters, and return values
 
-### 🐱 Whisker Parsing
-Visualize code structure with animated whisker-like lines that connect related code elements. Whiskers extend and retract as you explore different sections of code.
+### 📊 Performance & Complexity
+- **Performance Hotspot Detection**: Identify potential performance bottlenecks
+- **Complexity Analysis**: Visualize code complexity metrics
+- **Dependency Visualization**: See function dependencies in an interactive graph
 
-### 😸 Curious Explanations
-Get human-readable explanations of selected code blocks with varying levels of detail. A kitten icon indicates the complexity of the code.
+### 📝 Documentation
+- **Documentation Suggestions**: Get smart documentation recommendations
+- **Context-Aware Hints**: Receive relevant coding tips and best practices
 
-### 🐈 Pounce Predictions
-See function behavior predictions including inputs, outputs, and side effects when hovering over function references.
+### 🎨 Customization
+- **Kitten Themes**: Choose from various cat-themed UI styles
+  - Tabby (Default)
+  - Siamese
+  - Calico
+  - Black
+- **Explanation Styles**: Select your preferred explanation detail level
+  - Conversational
+  - Technical
+  - Detailed
 
-### 😻 Purr Prompts
-Receive subtle reminders to document your code, with increasing visibility for important sections.
+## 🚀 Getting Started
 
-### 🐾 Paw Prints
-Trace variable definitions, mutations, and usages with visual paw print paths through your code.
+1. Install the WhiskerCode extension from VS Code Marketplace
+2. Open any supported file (JavaScript, TypeScript, Python, Java, C#)
+3. Right-click on code to access WhiskerCode features
+4. Use the command palette (Ctrl/Cmd + Shift + P) and type "WhiskerCode" to see all available commands
 
-## Installation
+## 💡 Usage Tips
 
-1. Launch VS Code
-2. Go to Extensions (Ctrl+Shift+X or Cmd+Shift+X)
-3. Search for "CodeWhiskers"
-4. Click Install
-5. Reload VS Code
+- Select code and right-click to explain specific sections
+- Use the sidebar icons for quick access to analysis tools
+- Hover over highlighted sections for additional insights
+- Customize themes and settings through the extension settings
 
-## Usage
+## 🔧 Supported Languages
 
-### Explain Code
-1. Select a block of code
-2. Right-click and select "CodeWhiskers: Explain Selected Code" or use the command palette (Ctrl+Shift+P or Cmd+Shift+P)
-3. View the explanation in the panel that appears
+- JavaScript/TypeScript
+- React (JSX/TSX)
+- Python
+- Java
+- C#
 
-### Trace Variables
-1. Select a variable
-2. Right-click and select "CodeWhiskers: Trace Variable" or use the command palette
-3. See all references to the variable highlighted with paw prints
+## ⚙️ Configuration
 
-### Analyze Functions
-1. Open a file with functions
-2. Use the command palette to select "CodeWhiskers: Analyze Function Behavior"
-3. View the function behavior analysis in the panel that appears
+Access settings through:
+1. Command Palette → "WhiskerCode: Open Settings"
+2. VS Code Settings → Extensions → WhiskerCode
 
-### Get Documentation Suggestions
-1. Open a file with undocumented code
-2. Use the command palette to select "CodeWhiskers: Suggest Documentation"
-3. See suggestions and click "Add Documentation" to automatically add templates
+Key settings:
+- `whiskercode.explanationStyle`: Choose explanation detail level
+- `whiskercode.uiTheme`: Select your preferred cat theme
+- `whiskercode.animationFrequency`: Adjust UI animation frequency
 
-## Configuration
+## 🤝 Contributing
 
-CodeWhiskers can be customized through VS Code settings:
+We welcome contributions! Visit our [GitHub repository](https://github.com/whiskercode/whiskercode-vscode) to:
+- Report issues
+- Submit feature requests
+- Contribute code
 
-- **Explanation Style**: Choose between conversational, detailed, or technical explanations
-- **UI Theme**: Select different kitten themes (tabby, siamese, calico, black)
-- **Animation Frequency**: Adjust the frequency of whisker animations (low, medium, high)
+## 📄 License
 
-## Current Language Support
-
-- JavaScript
-- TypeScript
-
-More languages coming soon!
-
-## Contributing
-
-Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This extension is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-Made with ❤️ and 🐱 
+Made with 😺 by the WhiskerCode Team 

@@ -1,9 +1,9 @@
 {
-  "name": "codewhiskers",
-  "displayName": "CodeWhiskers",
+  "name": "whiskercode",
+  "displayName": "WhiskerCode",
   "description": "Understanding unfamiliar code through intuitive explanations with a kitten-themed UI",
-  "version": "0.1.0",
-  "publisher": "codewhiskers",
+  "version": "1.0.1",
+  "publisher": "Swift123",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -24,72 +24,72 @@
   "contributes": {
     "commands": [
       {
-        "command": "codewhiskers.explainCode",
-        "title": "CodeWhiskers: Explain Selected Code",
+        "command": "whiskercode.explainCode",
+        "title": "WhiskerCode: Explain Selected Code",
         "icon": {
           "light": "resources/light/explain.svg",
           "dark": "resources/dark/explain.svg"
         }
       },
       {
-        "command": "codewhiskers.traceVariable",
-        "title": "CodeWhiskers: Trace Variable Usage",
+        "command": "whiskercode.traceVariable",
+        "title": "WhiskerCode: Trace Variable Usage",
         "icon": {
           "light": "resources/light/trace.svg",
           "dark": "resources/dark/trace.svg"
         }
       },
       {
-        "command": "codewhiskers.suggestDocumentation",
-        "title": "CodeWhiskers: Suggest Documentation",
+        "command": "whiskercode.suggestDocumentation",
+        "title": "WhiskerCode: Suggest Documentation",
         "icon": {
           "light": "resources/light/document.svg",
           "dark": "resources/dark/document.svg"
         }
       },
       {
-        "command": "codewhiskers.analyzeFunctions",
-        "title": "CodeWhiskers: Analyze Functions",
+        "command": "whiskercode.analyzeFunctions",
+        "title": "WhiskerCode: Analyze Functions",
         "icon": {
           "light": "resources/light/analyze.svg",
           "dark": "resources/dark/analyze.svg"
         }
       },
       {
-        "command": "codewhiskers.openSettings",
-        "title": "CodeWhiskers: Open Settings",
+        "command": "whiskercode.openSettings",
+        "title": "WhiskerCode: Open Settings",
         "icon": {
           "light": "resources/light/settings.svg",
           "dark": "resources/dark/settings.svg"
         }
       },
       {
-        "command": "codewhiskers.analyzeComplexity",
-        "title": "CodeWhiskers: Analyze Code Complexity",
+        "command": "whiskercode.analyzeComplexity",
+        "title": "WhiskerCode: Analyze Code Complexity",
         "icon": {
           "light": "resources/light/analyze.svg",
           "dark": "resources/dark/analyze.svg"
         }
       },
       {
-        "command": "codewhiskers.visualizeDependencies",
-        "title": "CodeWhiskers: Visualize Function Dependencies",
+        "command": "whiskercode.visualizeDependencies",
+        "title": "WhiskerCode: Visualize Function Dependencies",
         "icon": {
           "light": "resources/light/trace.svg",
           "dark": "resources/dark/trace.svg"
         }
       },
       {
-        "command": "codewhiskers.changeCatTheme",
-        "title": "CodeWhiskers: Change Cat Theme",
+        "command": "whiskercode.changeCatTheme",
+        "title": "WhiskerCode: Change Cat Theme",
         "icon": {
           "light": "resources/light/settings.svg",
           "dark": "resources/dark/settings.svg"
         }
       },
       {
-        "command": "codewhiskers.detectPerformance",
-        "title": "CodeWhiskers: Detect Performance Hotspots",
+        "command": "whiskercode.detectPerformance",
+        "title": "WhiskerCode: Detect Performance Hotspots",
         "icon": {
           "light": "resources/light/analyze.svg",
           "dark": "resources/dark/analyze.svg"
@@ -100,75 +100,75 @@
       "editor/context": [
         {
           "when": "editorHasSelection && editorTextFocus",
-          "command": "codewhiskers.explainCode",
-          "group": "CodeWhiskers"
+          "command": "whiskercode.explainCode",
+          "group": "WhiskerCode"
         },
         {
           "when": "editorHasSelection && editorTextFocus",
-          "command": "codewhiskers.traceVariable",
-          "group": "CodeWhiskers"
+          "command": "whiskercode.traceVariable",
+          "group": "WhiskerCode"
         },
         {
           "when": "editorTextFocus",
-          "command": "codewhiskers.analyzeComplexity",
-          "group": "CodeWhiskers"
+          "command": "whiskercode.analyzeComplexity",
+          "group": "WhiskerCode"
         },
         {
           "when": "editorTextFocus",
-          "command": "codewhiskers.visualizeDependencies",
-          "group": "CodeWhiskers"
+          "command": "whiskercode.visualizeDependencies",
+          "group": "WhiskerCode"
         },
         {
           "when": "editorTextFocus",
-          "command": "codewhiskers.detectPerformance",
-          "group": "CodeWhiskers"
+          "command": "whiskercode.detectPerformance",
+          "group": "WhiskerCode"
         }
       ],
       "editor/title": [
         {
-          "command": "codewhiskers.suggestDocumentation",
+          "command": "whiskercode.suggestDocumentation",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
-          "command": "codewhiskers.analyzeFunctions",
+          "command": "whiskercode.analyzeFunctions",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
-          "command": "codewhiskers.analyzeComplexity",
+          "command": "whiskercode.analyzeComplexity",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
-          "command": "codewhiskers.visualizeDependencies",
+          "command": "whiskercode.visualizeDependencies",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
-          "command": "codewhiskers.detectPerformance",
+          "command": "whiskercode.detectPerformance",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == javascriptreact || editorLangId == typescriptreact"
         }
       ],
       "editor/title/run": [
         {
-          "command": "codewhiskers.explainCode",
+          "command": "whiskercode.explainCode",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         }
       ],
       "commandPalette": [
         {
-          "command": "codewhiskers.changeCatTheme",
-          "group": "CodeWhiskers"
+          "command": "whiskercode.changeCatTheme",
+          "group": "WhiskerCode"
         }
       ]
     },
     "configuration": {
-      "title": "CodeWhiskers",
+      "title": "WhiskerCode",
       "properties": {
-        "codewhiskers.explanationStyle": {
+        "whiskercode.explanationStyle": {
           "type": "string",
           "default": "conversational",
           "enum": [
@@ -178,7 +178,7 @@
           ],
           "description": "Style of code explanations"
         },
-        "codewhiskers.uiTheme": {
+        "whiskercode.uiTheme": {
           "type": "string",
           "default": "tabby",
           "enum": [
@@ -189,7 +189,7 @@
           ],
           "description": "Kitten theme for UI elements"
         },
-        "codewhiskers.animationFrequency": {
+        "whiskercode.animationFrequency": {
           "type": "string",
           "default": "medium",
           "enum": [
@@ -199,32 +199,32 @@
           ],
           "description": "Frequency of whisker animations"
         },
-        "codewhiskers.enableEmojis": {
+        "whiskercode.enableEmojis": {
           "type": "boolean",
           "default": true,
           "description": "Enable or disable emoji icons in the UI"
         },
-        "codewhiskers.enableAnimations": {
+        "whiskercode.enableAnimations": {
           "type": "boolean",
           "default": true,
           "description": "Enable or disable animations in the UI"
         },
-        "codewhiskers.enableDecorations": {
+        "whiskercode.enableDecorations": {
           "type": "boolean",
           "default": true,
           "description": "Enable or disable code decorations in the editor"
         },
-        "codewhiskers.enableAutoRefresh": {
+        "whiskercode.enableAutoRefresh": {
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh analysis when code changes"
         },
-        "codewhiskers.showCatImages": {
+        "whiskercode.showCatImages": {
           "type": "boolean",
           "default": true,
           "description": "Show cat images in the explanation panels"
         },
-        "codewhiskers.defaultLanguageSyntax": {
+        "whiskercode.defaultLanguageSyntax": {
           "type": "string",
           "default": "automatic",
           "enum": [
@@ -239,7 +239,7 @@
           ],
           "description": "Default syntax highlighting language for code snippets"
         },
-        "codewhiskers.catTheme": {
+        "whiskercode.catTheme": {
           "type": "string",
           "default": "default",
           "enum": [
@@ -266,17 +266,17 @@
           ],
           "description": "Choose your cat theme character"
         },
-        "codewhiskers.enableCatSounds": {
+        "whiskercode.enableCatSounds": {
           "type": "boolean",
           "default": false,
           "description": "Enable cat sound effects (meows, purrs) on actions"
         },
-        "codewhiskers.enableSeasonalThemes": {
+        "whiskercode.enableSeasonalThemes": {
           "type": "boolean",
           "default": true,
           "description": "Enable seasonal themes (Halloween, Winter, etc.)"
         },
-        "codewhiskers.uiStyle": {
+        "whiskercode.uiStyle": {
           "type": "string",
           "default": "modern",
           "enum": [
@@ -298,20 +298,20 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "codewhiskers-sidebar",
-          "title": "CodeWhiskers",
+          "id": "whiskercode-sidebar",
+          "title": "WhiskerCode",
           "icon": "resources/cat-icon.svg"
         }
       ]
     },
     "views": {
-      "codewhiskers-sidebar": [
+      "whiskercode-sidebar": [
         {
-          "id": "codewhiskers-explorer",
+          "id": "whiskercode-explorer",
           "name": "Code Explorer"
         },
         {
-          "id": "codewhiskers-documentation",
+          "id": "whiskercode-documentation",
           "name": "Documentation Hints"
         }
       ]
@@ -344,20 +344,28 @@
     "vscode": "^1.1.37"
   },
   "keywords": [
-    "code",
-    "understanding",
-    "explanation",
+    "code analysis",
     "documentation",
-    "visualization"
+    "performance",
+    "complexity",
+    "dependencies",
+    "explanation",
+    "visualization",
+    "productivity"
   ],
   "author": "CodeWhiskers Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/codewhiskers/codewhiskers.git"
+    "url": "https://github.com/codewhiskers/codewhiskers-vscode"
   },
   "bugs": {
     "url": "https://github.com/codewhiskers/codewhiskers/issues"
   },
-  "homepage": "https://github.com/codewhiskers/codewhiskers#readme"
+  "homepage": "https://github.com/codewhiskers/codewhiskers#readme",
+  "icon": "resources/whiskercode-icon.png",
+  "galleryBanner": {
+    "color": "#C6EAFA",
+    "theme": "light"
+  }
 }

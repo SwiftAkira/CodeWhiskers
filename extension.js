@@ -10,7 +10,7 @@ const PerformanceAnalyzer = require('./src/performanceAnalyzer');
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-    console.log('CodeWhiskers is now active!');
+    console.log('WhiskerCode is now active!');
 
     try {
         // Initialize components with error handling
@@ -74,13 +74,13 @@ function activate(context) {
         }
 
         // Register commands with safety checks
-        const explainCodeCommand = vscode.commands.registerCommand('codewhiskers.explainCode', async () => {
+        const explainCodeCommand = vscode.commands.registerCommand('whiskercode.explainCode', async () => {
             if (!parser || !explainer || !ui) {
-                vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Analyzing code...');
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Analyzing code...');
             
             try {
                 const editor = vscode.window.activeTextEditor;
@@ -119,13 +119,13 @@ function activate(context) {
             }
         });
 
-        const traceVariableCommand = vscode.commands.registerCommand('codewhiskers.traceVariable', async () => {
+        const traceVariableCommand = vscode.commands.registerCommand('whiskercode.traceVariable', async () => {
             if (!parser || !ui) {
-                vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Tracing variable...');
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Tracing variable...');
             
             try {
                 const editor = vscode.window.activeTextEditor;
@@ -156,13 +156,13 @@ function activate(context) {
             }
         });
 
-        const suggestDocumentationCommand = vscode.commands.registerCommand('codewhiskers.suggestDocumentation', async () => {
+        const suggestDocumentationCommand = vscode.commands.registerCommand('whiskercode.suggestDocumentation', async () => {
             if (!parser || !ui) {
-                vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Suggesting documentation...');
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Suggesting documentation...');
             
             try {
                 const editor = vscode.window.activeTextEditor;
@@ -185,13 +185,13 @@ function activate(context) {
             }
         });
 
-        const analyzeFunctionsCommand = vscode.commands.registerCommand('codewhiskers.analyzeFunctions', async () => {
+        const analyzeFunctionsCommand = vscode.commands.registerCommand('whiskercode.analyzeFunctions', async () => {
             if (!parser || !explainer || !ui) {
-                vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Analyzing functions...');
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Analyzing functions...');
             
             try {
                 const editor = vscode.window.activeTextEditor;
@@ -215,9 +215,9 @@ function activate(context) {
             }
         });
 
-        const openSettingsCommand = vscode.commands.registerCommand('codewhiskers.openSettings', function() {
+        const openSettingsCommand = vscode.commands.registerCommand('whiskercode.openSettings', function() {
             if (!ui) {
-                vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
@@ -237,7 +237,7 @@ function activate(context) {
             
             try {
                 // Only execute if the configuration allows real-time analysis
-                const config = vscode.workspace.getConfiguration('codewhiskers');
+                const config = vscode.workspace.getConfiguration('whiskercode');
                 const animationFrequency = config.get('animationFrequency');
                 
                 if (animationFrequency === 'low') {
@@ -263,12 +263,12 @@ function activate(context) {
         });
 
         // Add command for code complexity analysis
-        const analyzeComplexityCommand = vscode.commands.registerCommand('codewhiskers.analyzeComplexity', async () => {
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Analyzing code complexity...');
+        const analyzeComplexityCommand = vscode.commands.registerCommand('whiskercode.analyzeComplexity', async () => {
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Analyzing code complexity...');
             
             try {
                 if (!parser || !complexityVisualizer) {
-                    vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                     return;
                 }
                 
@@ -309,12 +309,12 @@ function activate(context) {
         });
 
         // Add command for dependency graph visualization
-        const visualizeDependenciesCommand = vscode.commands.registerCommand('codewhiskers.visualizeDependencies', async () => {
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Generating dependency graph...');
+        const visualizeDependenciesCommand = vscode.commands.registerCommand('whiskercode.visualizeDependencies', async () => {
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Generating dependency graph...');
             
             try {
                 if (!parser || !complexityVisualizer) {
-                    vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                     return;
                 }
                 
@@ -355,10 +355,10 @@ function activate(context) {
         });
 
         // Add command to change cat theme
-        let changeCatThemeCommand = vscode.commands.registerCommand('codewhiskers.changeCatTheme', async () => {
+        const changeCatThemeCommand = vscode.commands.registerCommand('whiskercode.changeCatTheme', async () => {
             try {
                 if (!catThemeManager) {
-                    vscode.window.showErrorMessage('CodeWhiskers cat theme manager is not initialized yet. Please try again in a moment.');
+                    vscode.window.showErrorMessage('WhiskerCode cat theme manager is not initialized yet. Please try again in a moment.');
                     return;
                 }
                 
@@ -374,12 +374,12 @@ function activate(context) {
         });
 
         // Add command for performance hotspot detection
-        const detectPerformanceCommand = vscode.commands.registerCommand('codewhiskers.detectPerformance', async () => {
-            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Detecting performance hotspots...');
+        const detectPerformanceCommand = vscode.commands.registerCommand('whiskercode.detectPerformance', async () => {
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Detecting performance hotspots...');
             
             try {
                 if (!parser || !performanceAnalyzer) {
-                    vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
                     return;
                 }
                 
@@ -424,7 +424,7 @@ function activate(context) {
             }
         });
 
-        // Register commands
+        // Register all commands
         context.subscriptions.push(
             explainCodeCommand,
             traceVariableCommand,
@@ -447,13 +447,13 @@ function activate(context) {
         }
 
     } catch (error) {
-        console.error('Fatal error during CodeWhiskers activation:', error);
-        vscode.window.showErrorMessage(`Fatal error initializing CodeWhiskers: ${error.message}`);
+        console.error('Fatal error during WhiskerCode activation:', error);
+        vscode.window.showErrorMessage(`Fatal error initializing WhiskerCode: ${error.message}`);
     }
 }
 
 function deactivate() {
-    console.log('CodeWhiskers is deactivating...');
+    console.log('WhiskerCode is deactivating...');
 }
 
 module.exports = {
