@@ -2,7 +2,7 @@
   "name": "whiskercode",
   "displayName": "WhiskerCode",
   "description": "Understanding unfamiliar code through intuitive explanations with a kitten-themed UI",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "Swift123",
   "engines": {
     "vscode": "^1.60.0"
@@ -25,75 +25,74 @@
     "commands": [
       {
         "command": "whiskercode.explainCode",
-        "title": "WhiskerCode: Explain Selected Code",
-        "icon": {
-          "light": "resources/light/explain.svg",
-          "dark": "resources/dark/explain.svg"
-        }
+        "title": "📝 WhiskerCode: Explain Selected Code",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.traceVariable",
-        "title": "WhiskerCode: Trace Variable Usage",
-        "icon": {
-          "light": "resources/light/trace.svg",
-          "dark": "resources/dark/trace.svg"
-        }
+        "title": "🔍 WhiskerCode: Trace Variable Usage",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.suggestDocumentation",
-        "title": "WhiskerCode: Suggest Documentation",
-        "icon": {
-          "light": "resources/light/document.svg",
-          "dark": "resources/dark/document.svg"
-        }
+        "title": "📚 WhiskerCode: Suggest Documentation",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.analyzeFunctions",
-        "title": "WhiskerCode: Analyze Functions",
-        "icon": {
-          "light": "resources/light/analyze.svg",
-          "dark": "resources/dark/analyze.svg"
-        }
+        "title": "⚡ WhiskerCode: Analyze Functions",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.openSettings",
-        "title": "WhiskerCode: Open Settings",
-        "icon": {
-          "light": "resources/light/settings.svg",
-          "dark": "resources/dark/settings.svg"
-        }
+        "title": "⚙️ WhiskerCode: Open Settings",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.analyzeComplexity",
-        "title": "WhiskerCode: Analyze Code Complexity",
-        "icon": {
-          "light": "resources/light/analyze.svg",
-          "dark": "resources/dark/analyze.svg"
-        }
+        "title": "📊 WhiskerCode: Analyze Code Complexity",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.visualizeDependencies",
-        "title": "WhiskerCode: Visualize Function Dependencies",
-        "icon": {
-          "light": "resources/light/trace.svg",
-          "dark": "resources/dark/trace.svg"
-        }
+        "title": "🔗 WhiskerCode: Visualize Function Dependencies",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.changeCatTheme",
-        "title": "WhiskerCode: Change Cat Theme",
-        "icon": {
-          "light": "resources/light/settings.svg",
-          "dark": "resources/dark/settings.svg"
-        }
+        "title": "🎨 WhiskerCode: Change Cat Theme",
+        "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.detectPerformance",
-        "title": "WhiskerCode: Detect Performance Hotspots",
-        "icon": {
-          "light": "resources/light/analyze.svg",
-          "dark": "resources/dark/analyze.svg"
-        }
+        "title": "⚡ WhiskerCode: Detect Performance Hotspots",
+        "category": "WhiskerCode"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "whiskercode.explainCode",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorHasSelection && editorTextFocus"
+      },
+      {
+        "command": "whiskercode.traceVariable",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorHasSelection && editorTextFocus"
+      },
+      {
+        "command": "whiskercode.detectPerformance",
+        "key": "ctrl+shift+p",
+        "mac": "cmd+shift+p",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "whiskercode.analyzeComplexity",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
@@ -315,6 +314,15 @@
           "name": "Documentation Hints"
         }
       ]
+    },
+    "statusBar": {
+      "items": [
+        {
+          "id": "whiskercode.statusBar",
+          "alignment": "right",
+          "priority": 100
+        }
+      ]
     }
   },
   "scripts": {
@@ -353,16 +361,16 @@
     "visualization",
     "productivity"
   ],
-  "author": "CodeWhiskers Team",
+  "author": "WhiskerCode Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/codewhiskers/codewhiskers-vscode"
+    "url": "https://github.com/SwiftAkira/WhiskerCode"
   },
   "bugs": {
-    "url": "https://github.com/codewhiskers/codewhiskers/issues"
+    "url": "https://github.com/SwiftAkira/WhiskerCode/issues"
   },
-  "homepage": "https://github.com/codewhiskers/codewhiskers#readme",
+  "homepage": "https://github.com/SwiftAkira/WhiskerCode#readme",
   "icon": "resources/whiskercode-icon.png",
   "galleryBanner": {
     "color": "#C6EAFA",
