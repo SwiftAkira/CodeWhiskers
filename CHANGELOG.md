@@ -2,6 +2,21 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.2.1] - 2024-03-27
+
+### Fixed
+- Performance Analysis visualization improvements:
+  - Fixed duplicate "Performance Analysis" title
+  - Enhanced headings with better contrast and readability
+  - Corrected missing Low Severity tab content
+  - Improved styling and layout for better user experience
+- Function Dependency Graph enhancements:
+  - Added zoom and pan controls
+  - Improved initial scaling to better fit the screen
+  - Added node information panel showing function details on hover
+  - Optimized force simulation parameters for better node spacing
+  - Added responsive behavior for window resizing
+
 ## [1.2.0] - 2024-03-20
 
 ### Added

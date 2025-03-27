@@ -2672,6 +2672,588 @@ class UILayer {
         // Update internal settings
         this.updateSettings();
     }
+    
+    /**
+     * Show panel with generic content
+     * @param {string} title - Panel title
+     * @param {string} content - Content to display
+     */
+    showPanel(title, content) {
+        const panel = vscode.window.createWebviewPanel(
+            'whiskerCodePanel',
+            title,
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true
+            }
+        );
+        
+        panel.webview.html = this._getWebviewContent(title, content);
+    }
+    
+    /**
+     * Show performance issues in a panel
+     * @param {object} analysis - Performance analysis results
+     * @param {string} language - Language of the analyzed code
+     */
+    showPerformanceIssues(analysis, language) {
+        const { issues, metrics, optimizations, bestPractices, score } = analysis;
+        
+        // Create HTML content
+        let content = `
+            <div class="performance-container">
+                <div class="performance-header">
+                    <h2 class="performance-title">Performance Analysis</h2>
+                    <div class="score-badge ${this._getScoreClass(score)}">
+                        ${score}/100
+                    </div>
+                </div>
+                
+                <h3 class="issues-heading">Issues Found (${issues.length})</h3>
+                <div class="issues-container">
+        `;
+        
+        if (issues.length === 0) {
+            content += `<p>No performance issues found! 🎉</p>`;
+        } else {
+            issues.forEach(issue => {
+                content += `
+                    <div class="issue-card ${issue.severity}">
+                        <div class="issue-header">
+                            <span class="severity-badge ${issue.severity}">${issue.severity}</span>
+                            <h4>${issue.description}</h4>
+                        </div>
+                        <div class="issue-details">
+                            <pre><code>${issue.context || issue.match}</code></pre>
+                            <p><strong>Suggestion:</strong> ${issue.suggestion}</p>
+                            ${issue.lineNumber ? `<p><strong>Line:</strong> ${issue.lineNumber}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        content += `</div>`;
+        
+        // Add performance metrics
+        if (metrics && Object.keys(metrics).length > 0) {
+            content += `
+                <h3 class="metrics-heading">Performance Metrics</h3>
+                <div class="metrics-container">
+            `;
+            
+            Object.entries(metrics).forEach(([key, value]) => {
+                content += `
+                    <div class="metric-card">
+                        <div class="metric-label">${key}</div>
+                        <div class="metric-value">${value}</div>
+                    </div>
+                `;
+            });
+            
+            content += `</div>`;
+        }
+        
+        // Add best practices
+        if (bestPractices && bestPractices.length > 0) {
+            content += `
+                <h3 class="practices-heading">Best Practices</h3>
+                <div class="best-practices-container">
+            `;
+            
+            bestPractices.forEach(practice => {
+                content += `
+                    <div class="practice-card">
+                        <div class="practice-icon">✓</div>
+                        <div class="practice-content">
+                            <h4>${practice.title}</h4>
+                            <p>${practice.description}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            content += `</div>`;
+        }
+        
+        // Add optimization suggestions
+        if (optimizations && optimizations.length > 0) {
+            content += `
+                <h3 class="optimizations-heading">Optimization Opportunities (${optimizations.length})</h3>
+                <div class="optimizations-container">
+            `;
+            
+            optimizations.forEach(opt => {
+                content += `
+                    <div class="optimization-card">
+                        <h4>💡 ${opt.description}</h4>
+                        <p>${opt.suggestion}</p>
+                        ${opt.code ? `<pre><code>${opt.code}</code></pre>` : ''}
+                    </div>
+                `;
+            });
+            
+            content += `</div>`;
+        }
+        
+        content += `</div>`; // Close performance-container
+        
+        // Create panel with content
+        const panel = vscode.window.createWebviewPanel(
+            'performanceAnalysis',
+            'WhiskerCode: Performance Analysis',
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true
+            }
+        );
+        
+        // Add custom styles for better heading contrast
+        const customStyles = `
+            <style>
+                .performance-title, .issues-heading, .metrics-heading, 
+                .practices-heading, .optimizations-heading {
+                    color: #FFFFFF;
+                    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
+                    font-weight: bold;
+                }
+                
+                .performance-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1.5rem;
+                }
+                
+                .score-badge {
+                    font-weight: bold;
+                    padding: 0.5rem 1rem;
+                    border-radius: 1rem;
+                    color: white;
+                }
+            </style>
+        `;
+        
+        panel.webview.html = this._getWebviewContent('Performance Analysis', customStyles + content, true);
+    }
+    
+    /**
+     * Show refactoring options for a function
+     * @param {string} functionName - Name of the function
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showRefactoringOptions(functionName, editor) {
+        const options = [
+            "Extract complex logic to new functions",
+            "Simplify nested conditionals",
+            "Optimize loop structures",
+            "Convert to more modern syntax",
+            "Add proper documentation"
+        ];
+        
+        vscode.window.showQuickPick(options, {
+            placeHolder: `Select refactoring strategy for ${functionName}`
+        }).then(selected => {
+            if (selected) {
+                vscode.window.showInformationMessage(`Selected to ${selected.toLowerCase()} for ${functionName}`);
+            }
+        });
+    }
+    
+    /**
+     * Show class analysis results
+     * @param {string} className - Name of the class
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showClassAnalysis(className, editor) {
+        vscode.window.showInformationMessage(`Analyzing class ${className}`);
+        
+        // In a real implementation, we would gather more data about the class
+        // and display it in a panel
+        const content = `
+            <div class="class-analysis">
+                <h2>Class Analysis: ${className}</h2>
+                <p>Detailed analysis of class structure and methods would appear here.</p>
+            </div>
+        `;
+        
+        const panel = vscode.window.createWebviewPanel(
+            'classAnalysis',
+            `WhiskerCode: Class Analysis - ${className}`,
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true
+            }
+        );
+        
+        panel.webview.html = this._getWebviewContent(`Class Analysis: ${className}`, content);
+    }
+    
+    /**
+     * Show React component analysis
+     * @param {string} componentName - Name of the component
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showReactComponentAnalysis(componentName, editor) {
+        vscode.window.showInformationMessage(`Analyzing React component ${componentName}`);
+        
+        // In a real implementation, we would analyze the component's hooks,
+        // props, state management, etc.
+        const content = `
+            <div class="react-analysis">
+                <h2>React Component Analysis: ${componentName}</h2>
+                <p>Detailed analysis of component structure, hooks, and optimization opportunities would appear here.</p>
+            </div>
+        `;
+        
+        const panel = vscode.window.createWebviewPanel(
+            'reactAnalysis',
+            `WhiskerCode: React Analysis - ${componentName}`,
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true
+            }
+        );
+        
+        panel.webview.html = this._getWebviewContent(`React Analysis: ${componentName}`, content);
+    }
+    
+    /**
+     * Show algorithmic complexity fix options
+     * @param {object} issue - The performance issue
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showAlgorithmicComplexityFixOptions(issue, editor) {
+        const options = [
+            "Convert to a more efficient algorithm",
+            "Use memoization to cache results",
+            "Replace nested loops with a more efficient data structure",
+            "Show me best practices for this pattern"
+        ];
+        
+        vscode.window.showQuickPick(options, {
+            placeHolder: `Select fix strategy for "${issue.description}"`
+        }).then(selected => {
+            if (selected) {
+                vscode.window.showInformationMessage(`Selected to ${selected.toLowerCase()}`);
+            }
+        });
+    }
+    
+    /**
+     * Show performance fix options
+     * @param {object} issue - The performance issue
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showPerformanceFixOptions(issue, editor) {
+        vscode.window.showInformationMessage(`Suggested fix: ${issue.suggestion}`);
+    }
+    
+    /**
+     * Show async fix options
+     * @param {object} issue - The performance issue
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showAsyncFixOptions(issue, editor) {
+        const code = issue.match;
+        const selection = editor.selection;
+        
+        // For sequential await in loop issue
+        if (issue.description.includes("Sequential await")) {
+            const fixedCode = `// Create an array of promises first
+const promises = items.map(async (item) => {
+    // Your async operation here
+    return await someAsyncOperation(item);
+});
+
+// Then await all promises at once
+const results = await Promise.all(promises);`;
+            
+            vscode.window.showInformationMessage(
+                "Sequential awaits in loops can be slow. Consider using Promise.all.",
+                "Show Fix"
+            ).then(selected => {
+                if (selected === "Show Fix") {
+                    const panel = vscode.window.createWebviewPanel(
+                        'asyncFix',
+                        'WhiskerCode: Async Pattern Fix',
+                        vscode.ViewColumn.Two,
+                        {
+                            enableScripts: true
+                        }
+                    );
+                    
+                    const content = `
+                        <h2>Async Pattern Fix</h2>
+                        <h3>Issue: ${issue.description}</h3>
+                        <p><strong>Current Code:</strong></p>
+                        <pre><code>${issue.match}</code></pre>
+                        <p><strong>Suggested Fix:</strong></p>
+                        <pre><code>${fixedCode}</code></pre>
+                        <p>${issue.suggestion}</p>
+                    `;
+                    
+                    panel.webview.html = this._getWebviewContent('Async Pattern Fix', content);
+                }
+            });
+        }
+    }
+    
+    /**
+     * Show refactoring panel with options
+     * @param {object} opportunity - The refactoring opportunity
+     * @param {vscode.TextEditor} editor - Current editor
+     */
+    showRefactoringPanel(opportunity, editor) {
+        const panel = vscode.window.createWebviewPanel(
+            'refactoring',
+            'WhiskerCode: Refactoring Suggestion',
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true
+            }
+        );
+        
+        const content = `
+            <h2>Refactoring Suggestion</h2>
+            <h3>Issue: ${opportunity.description}</h3>
+            <p><strong>Suggestion:</strong> ${opportunity.suggestion}</p>
+            ${opportunity.pattern ? `<p><strong>Pattern:</strong> <pre><code>${opportunity.pattern}</code></pre></p>` : ''}
+        `;
+        
+        panel.webview.html = this._getWebviewContent('Refactoring Suggestion', content);
+    }
+    
+    /**
+     * Get score CSS class based on value
+     * @private
+     */
+    _getScoreClass(score) {
+        if (score >= 80) return 'score-excellent';
+        if (score >= 60) return 'score-good';
+        if (score >= 40) return 'score-medium';
+        return 'score-poor';
+    }
+    
+    /**
+     * Generate HTML content for webview panels
+     * @param {string} title - The title of the panel
+     * @param {string} content - The main content of the panel
+     * @param {boolean} includeStylesheet - Whether to include stylesheet for specific views
+     * @returns {string} Formatted HTML for the webview
+     * @private
+     */
+    _getWebviewContent(title, content, includeStylesheet = false) {
+        const catTheme = this.catThemeManager ? this.catThemeManager.getCurrentTheme() : 'tabby';
+        const themeCss = this._getThemeCss(catTheme);
+        
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${title}</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                        padding: 20px;
+                        color: var(--vscode-editor-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    h1, h2, h3, h4 {
+                        color: var(--vscode-titleBar-activeBackground);
+                        margin-top: 20px;
+                        margin-bottom: 10px;
+                    }
+                    .container {
+                        max-width: 100%;
+                        margin: 0 auto;
+                    }
+                    pre {
+                        padding: 12px;
+                        border-radius: 4px;
+                        background-color: var(--vscode-textCodeBlock-background);
+                        overflow-x: auto;
+                    }
+                    code {
+                        font-family: 'Fira Code', Consolas, 'Courier New', monospace;
+                        font-size: 14px;
+                    }
+                    .severity-badge {
+                        display: inline-block;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        font-weight: bold;
+                        margin-right: 8px;
+                    }
+                    .critical {
+                        background-color: #ff5252;
+                        color: white;
+                    }
+                    .high {
+                        background-color: #ff9800;
+                        color: white;
+                    }
+                    .medium {
+                        background-color: #ffcd38;
+                        color: black;
+                    }
+                    .low {
+                        background-color: #8bc34a;
+                        color: black;
+                    }
+                    .positive {
+                        background-color: #4caf50;
+                        color: white;
+                    }
+                    .issue-card, .metric-card, .practice-card, .optimization-card {
+                        border: 1px solid var(--vscode-editorWidget-border);
+                        border-radius: 4px;
+                        margin-bottom: 16px;
+                        padding: 12px;
+                        background-color: var(--vscode-editorWidget-background);
+                    }
+                    .issue-header, .performance-header {
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 8px;
+                    }
+                    .issue-header h4 {
+                        margin: 0;
+                    }
+                    .metrics-container {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                        gap: 16px;
+                    }
+                    .metric-value {
+                        font-size: 24px;
+                        font-weight: bold;
+                        margin: 8px 0;
+                    }
+                    .score-badge {
+                        display: inline-block;
+                        padding: 8px 16px;
+                        border-radius: 50px;
+                        font-weight: bold;
+                        font-size: 18px;
+                        margin-left: auto;
+                    }
+                    .score-excellent {
+                        background-color: #4caf50;
+                        color: white;
+                    }
+                    .score-good {
+                        background-color: #8bc34a;
+                        color: black;
+                    }
+                    .score-medium {
+                        background-color: #ffcd38;
+                        color: black;
+                    }
+                    .score-poor {
+                        background-color: #ff9800;
+                        color: white;
+                    }
+                    ${themeCss}
+                    ${includeStylesheet ? this._getAdditionalStyles() : ''}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>${title}</h1>
+                    ${content}
+                </div>
+            </body>
+            </html>
+        `;
+    }
+    
+    /**
+     * Get CSS based on selected cat theme
+     * @param {string} theme - The theme name
+     * @returns {string} CSS for theme
+     * @private
+     */
+    _getThemeCss(theme) {
+        const themeColors = {
+            tabby: {
+                primary: '#B87333',
+                secondary: '#DEB887',
+                accent: '#8B4513'
+            },
+            siamese: {
+                primary: '#483C32',
+                secondary: '#E8DAAF',
+                accent: '#736357'
+            },
+            calico: {
+                primary: '#FF7F50',
+                secondary: '#FFF8DC',
+                accent: '#DAA520'
+            },
+            black: {
+                primary: '#2F4F4F',
+                secondary: '#708090',
+                accent: '#4682B4'
+            }
+        };
+        
+        const colors = themeColors[theme] || themeColors.tabby;
+        
+        return `
+            :root {
+                --cat-primary: ${colors.primary};
+                --cat-secondary: ${colors.secondary};
+                --cat-accent: ${colors.accent};
+            }
+            h1, h2, h3 {
+                color: var(--cat-primary);
+                border-bottom: 1px solid var(--cat-secondary);
+                padding-bottom: 8px;
+            }
+            a {
+                color: var(--cat-accent);
+            }
+            button {
+                background-color: var(--cat-accent);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: var(--cat-primary);
+            }
+        `;
+    }
+    
+    /**
+     * Get additional styles for specific views
+     * @returns {string} Additional CSS
+     * @private
+     */
+    _getAdditionalStyles() {
+        return `
+            .performance-container {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+            .issues-container, .practices-container, .optimizations-container {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .issue-details {
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px dashed var(--vscode-editorWidget-border);
+            }
+        `;
+    }
 }
 
 module.exports = {

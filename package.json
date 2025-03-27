@@ -2,7 +2,7 @@
   "name": "whiskercode",
   "displayName": "WhiskerCode",
   "description": "Understanding unfamiliar code through intuitive explanations with a kitten-themed UI",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "Swift123",
   "engines": {
     "vscode": "^1.60.0"

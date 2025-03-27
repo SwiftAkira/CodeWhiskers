@@ -676,7 +676,7 @@ class ComplexityVisualizer {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>CodeWhiskers Dependency Graph</title>
+            <title>WhiskerCode Dependency Graph</title>
             <script src="https://d3js.org/d3.v7.min.js"></script>
             <style>
                 body {
@@ -684,22 +684,32 @@ class ComplexityVisualizer {
                     padding: 20px;
                     color: var(--vscode-foreground);
                     background-color: var(--vscode-editor-background);
+                    margin: 0;
+                    overflow: hidden;
                 }
                 h1, h2 {
                     color: var(--vscode-editor-foreground);
                 }
-                #graph {
+                #graph-container {
                     width: 100%;
                     height: 600px;
                     border: 1px solid var(--vscode-panel-border);
                     border-radius: 8px;
                     overflow: hidden;
+                    position: relative;
+                }
+                #graph {
+                    width: 100%;
+                    height: 100%;
                 }
                 .node {
                     cursor: pointer;
                 }
                 .node text {
                     font-size: 12px;
+                    fill: var(--vscode-editor-foreground);
+                    pointer-events: none;
+                    user-select: none;
                 }
                 .link {
                     stroke: var(--vscode-editor-foreground);
@@ -710,7 +720,6 @@ class ComplexityVisualizer {
                     margin-top: 15px;
                     font-size: 60px;
                     line-height: 1;
-                    ${catAnimation}
                 }
                 .cat-container {
                     text-align: center;
@@ -721,6 +730,7 @@ class ComplexityVisualizer {
                     margin-top: 20px;
                     gap: 20px;
                     justify-content: center;
+                    flex-wrap: wrap;
                 }
                 .legend-item {
                     display: flex;
@@ -731,6 +741,51 @@ class ComplexityVisualizer {
                     width: 15px;
                     height: 15px;
                     border-radius: 50%;
+                }
+                .controls {
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0, 0, 0, 0.7);
+                    padding: 10px;
+                    border-radius: 5px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 5px;
+                    z-index: 10;
+                }
+                .control-btn {
+                    cursor: pointer;
+                    background: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    border-radius: 3px;
+                    padding: 5px 10px;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .control-btn:hover {
+                    background: var(--vscode-button-hoverBackground);
+                }
+                .zoom-label {
+                    color: white;
+                    text-align: center;
+                    font-size: 12px;
+                    margin-top: 5px;
+                }
+                #node-info {
+                    position: absolute;
+                    bottom: 10px;
+                    left: 10px;
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 10px;
+                    border-radius: 5px;
+                    max-width: 300px;
+                    z-index: 10;
+                    display: none;
                 }
                 
                 /* Add cat theme CSS */
@@ -746,7 +801,18 @@ class ComplexityVisualizer {
                 <p>File: ${fileName}</p>
             </div>
             
-            <div id="graph"></div>
+            <div id="graph-container">
+                <div id="graph"></div>
+                <div class="controls">
+                    <button class="control-btn" id="zoom-in">➕ Zoom In</button>
+                    <button class="control-btn" id="zoom-out">➖ Zoom Out</button>
+                    <button class="control-btn" id="zoom-reset">🔄 Reset</button>
+                    <div class="zoom-label">Double-click: Zoom In</div>
+                    <div class="zoom-label">Drag: Pan View</div>
+                    <div class="zoom-label">Wheel: Zoom</div>
+                </div>
+                <div id="node-info"></div>
+            </div>
             
             <div class="legend">
                 <div class="legend-item">
@@ -769,11 +835,13 @@ class ComplexityVisualizer {
             
             <script>
                 (function() {
-                    // Initialize D3 graph
-                    const width = document.getElementById('graph').clientWidth;
-                    const height = document.getElementById('graph').clientHeight;
-                    
+                    // Graph data
                     const data = ${JSON.stringify(dependencyData)};
+                    
+                    // Initialize D3 graph
+                    const container = document.getElementById('graph-container');
+                    const width = container.clientWidth;
+                    const height = container.clientHeight;
                     
                     // Color scale for node complexity
                     const getNodeColor = (complexity) => {
@@ -783,11 +851,27 @@ class ComplexityVisualizer {
                         return '#F44336';
                     };
                     
-                    // Create SVG
+                    // Create SVG with zoom support
                     const svg = d3.select('#graph')
                         .append('svg')
                         .attr('width', width)
-                        .attr('height', height);
+                        .attr('height', height)
+                        .attr('viewBox', [0, 0, width, height])
+                        .attr('style', 'max-width: 100%; height: auto;');
+                    
+                    // Add zoom behavior
+                    const zoom = d3.zoom()
+                        .scaleExtent([0.1, 4])
+                        .on('zoom', (event) => {
+                            g.attr('transform', event.transform);
+                            updateZoomLabel(event.transform.k);
+                        });
+                    
+                    // Apply zoom to svg
+                    svg.call(zoom);
+                    
+                    // Create a group for all elements that should be zoomed
+                    const g = svg.append('g');
                         
                     // Create arrow marker for links
                     svg.append('defs').append('marker')
@@ -806,13 +890,13 @@ class ComplexityVisualizer {
                     
                     // Create force simulation
                     const simulation = d3.forceSimulation(data.nodes)
-                        .force('link', d3.forceLink(data.links).id(d => d.id).distance(100))
-                        .force('charge', d3.forceManyBody().strength(-300))
+                        .force('link', d3.forceLink(data.links).id(d => d.id).distance(150))
+                        .force('charge', d3.forceManyBody().strength(-500))
                         .force('center', d3.forceCenter(width / 2, height / 2))
-                        .force('collision', d3.forceCollide().radius(50));
+                        .force('collision', d3.forceCollide().radius(60));
                     
                     // Create links
-                    const link = svg.append('g')
+                    const link = g.append('g')
                         .selectAll('line')
                         .data(data.links)
                         .enter().append('line')
@@ -820,11 +904,13 @@ class ComplexityVisualizer {
                         .attr('marker-end', 'url(#arrowhead)');
                     
                     // Create nodes
-                    const node = svg.append('g')
+                    const node = g.append('g')
                         .selectAll('.node')
                         .data(data.nodes)
                         .enter().append('g')
                         .attr('class', 'node')
+                        .on('mouseover', showNodeInfo)
+                        .on('mouseout', hideNodeInfo)
                         .call(d3.drag()
                             .on('start', dragstarted)
                             .on('drag', dragged)
@@ -832,13 +918,13 @@ class ComplexityVisualizer {
                     
                     // Add circles to nodes
                     node.append('circle')
-                        .attr('r', d => Math.min(30, 10 + d.complexity))
+                        .attr('r', d => Math.min(40, 15 + d.complexity))
                         .attr('fill', d => getNodeColor(d.complexity));
                     
                     // Add text to nodes
                     node.append('text')
-                        .attr('dx', d => -(d.id.length * 3))
                         .attr('dy', 4)
+                        .attr('text-anchor', 'middle')
                         .text(d => d.id);
                     
                     // Update positions on simulation tick
@@ -852,6 +938,68 @@ class ComplexityVisualizer {
                         node
                             .attr('transform', d => \`translate(\${d.x}, \${d.y})\`);
                     });
+                    
+                    // Add control button handlers
+                    document.getElementById('zoom-in').addEventListener('click', () => {
+                        svg.transition().duration(300).call(zoom.scaleBy, 1.5);
+                    });
+                    
+                    document.getElementById('zoom-out').addEventListener('click', () => {
+                        svg.transition().duration(300).call(zoom.scaleBy, 0.75);
+                    });
+                    
+                    document.getElementById('zoom-reset').addEventListener('click', () => {
+                        svg.transition().duration(300).call(
+                            zoom.transform,
+                            d3.zoomIdentity.translate(width / 2, height / 2)
+                                .scale(0.75)
+                                .translate(-width / 2, -height / 2)
+                        );
+                    });
+                    
+                    // Set initial zoom level to see the whole graph
+                    svg.call(
+                        zoom.transform,
+                        d3.zoomIdentity.translate(width / 2, height / 2)
+                            .scale(0.75)
+                            .translate(-width / 2, -height / 2)
+                    );
+                    
+                    // Update zoom label
+                    function updateZoomLabel(scale) {
+                        const percent = Math.round(scale * 100);
+                        document.querySelector('.zoom-label').innerText = \`Zoom: \${percent}%\`;
+                    }
+                    
+                    // Show node info
+                    function showNodeInfo(event, d) {
+                        const nodeInfo = document.getElementById('node-info');
+                        // Get the called functions and called by functions
+                        const calls = [];
+                        const calledBy = [];
+                        
+                        data.links.forEach(link => {
+                            if (link.source.id === d.id) {
+                                calls.push(link.target.id);
+                            }
+                            if (link.target.id === d.id) {
+                                calledBy.push(link.source.id);
+                            }
+                        });
+                        
+                        nodeInfo.innerHTML = \`
+                            <strong>\${d.id}</strong><br>
+                            <small>Complexity: \${d.complexity}</small><br>
+                            \${calls.length > 0 ? \`<small>Calls: \${calls.join(', ')}</small><br>\` : ''}
+                            \${calledBy.length > 0 ? \`<small>Called by: \${calledBy.join(', ')}</small>\` : ''}
+                        \`;
+                        nodeInfo.style.display = 'block';
+                    }
+                    
+                    // Hide node info
+                    function hideNodeInfo() {
+                        document.getElementById('node-info').style.display = 'none';
+                    }
                     
                     // Drag functions
                     function dragstarted(event, d) {
@@ -867,9 +1015,34 @@ class ComplexityVisualizer {
                     
                     function dragended(event, d) {
                         if (!event.active) simulation.alphaTarget(0);
-                        d.fx = null;
-                        d.fy = null;
+                        // Keep the node fixed where dragged to
+                        // d.fx = null;
+                        // d.fy = null;
                     }
+                    
+                    // Enable double-click to zoom
+                    svg.on('dblclick.zoom', (event) => {
+                        const pt = d3.pointer(event);
+                        svg.transition().duration(300).call(
+                            zoom.translateTo, pt[0], pt[1]
+                        ).transition().call(
+                            zoom.scaleBy, 1.5
+                        );
+                    });
+                    
+                    // Listen for window resize to update the graph dimensions
+                    window.addEventListener('resize', () => {
+                        const newWidth = container.clientWidth;
+                        const newHeight = container.clientHeight;
+                        
+                        svg.attr('width', newWidth)
+                           .attr('height', newHeight)
+                           .attr('viewBox', [0, 0, newWidth, newHeight]);
+                           
+                        simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2))
+                                 .alpha(0.3)
+                                 .restart();
+                    });
                 })();
                 
                 // Add theme change handler
@@ -889,7 +1062,7 @@ class ComplexityVisualizer {
                             styleSheet.insertRule(animationCSS, styleSheet.cssRules.length);
                             
                             // Get animation name from the CSS
-                            const animationMatch = animationCSS.match(/animation:\s+([^\\s]+)/);
+                            const animationMatch = animationCSS.match(/animation:\\s+([^\\s]+)/);
                             if (animationMatch && animationMatch[1]) {
                                 catImage.style.animation = animationMatch[1] + ' 2s infinite ease-in-out';
                             }

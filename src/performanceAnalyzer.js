@@ -406,7 +406,7 @@ class PerformanceAnalyzer {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>CodeWhiskers Performance Analysis</title>
+            <title>WhiskerCode Performance Analysis</title>
             <style>
                 :root {
                     --primary-color: var(--vscode-button-background);
@@ -420,6 +420,7 @@ class PerformanceAnalyzer {
                     --medium-severity: #FFC107;
                     --low-severity: #4CAF50;
                     --animation-duration: 800ms;
+                    --heading-color: #FFFFFF;
                 }
                 
                 body {
@@ -438,7 +439,9 @@ class PerformanceAnalyzer {
                 }
                 
                 h1, h2, h3 {
-                    color: var(--panel-text);
+                    color: var(--heading-color);
+                    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
+                    font-weight: bold;
                 }
                 
                 .cat-container {
@@ -464,7 +467,7 @@ class PerformanceAnalyzer {
                     height: 100%;
                     border-radius: 50%;
                     background: conic-gradient(
-                        ${scoreColor} ${performanceScore * 3.6}deg, 
+                        
                         var(--card-bg) 0deg
                     );
                     display: flex;
@@ -495,6 +498,11 @@ class PerformanceAnalyzer {
                     padding: 15px;
                     margin-bottom: 20px;
                     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+                
+                .summary-box h3 {
+                    margin-top: 0;
+                    font-size: 18px;
                 }
                 
                 .issue-card {
@@ -580,6 +588,7 @@ class PerformanceAnalyzer {
                     cursor: pointer;
                     color: var(--panel-text);
                     transition: background-color 0.2s ease;
+                    font-weight: bold;
                 }
                 
                 .tab.active {
@@ -606,7 +615,7 @@ class PerformanceAnalyzer {
                     }
                 }
                 
-                ${catThemeCSS}
+                
             </style>
         </head>
         <body>

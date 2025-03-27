@@ -334,7 +334,15 @@ function activate(context) {
                     refactoring: refactoringOpportunities
                 };
                 
-                complexityVisualizer.visualizeComplexity(combinedAnalysis, language);
+                // Fix: Use showComplexityAnalysis instead of visualizeComplexity
+                if (complexityVisualizer && typeof complexityVisualizer.showComplexityAnalysis === 'function') {
+                    complexityVisualizer.showComplexityAnalysis(combinedAnalysis.functions, document.fileName.split('/').pop());
+                } else if (ui) {
+                    // Fallback to a generic display method
+                    ui.showPanel('Complexity Analysis', JSON.stringify(combinedAnalysis, null, 2));
+                } else {
+                    vscode.window.showInformationMessage(`Analyzed ${combinedAnalysis.functions.length} functions for complexity.`);
+                }
             } catch (error) {
                 console.error('Error analyzing complexity:', error);
                 vscode.window.showErrorMessage(`Error analyzing complexity: ${error.message}`);
@@ -441,7 +449,17 @@ function activate(context) {
                     score: enhancedResults.overallScore
                 };
                 
-                ui.showPerformanceAnalysis(combinedAnalysis, language);
+                // Fix: Use showPerformanceIssues instead of showPerformanceAnalysis
+                if (performanceAnalyzer && typeof performanceAnalyzer.showPerformanceIssues === 'function') {
+                    performanceAnalyzer.showPerformanceIssues(combinedAnalysis, language);
+                } else if (ui && typeof ui.showPerformanceIssues === 'function') {
+                    ui.showPerformanceIssues(combinedAnalysis, language);
+                } else if (ui) {
+                    // Fallback to a generic display method
+                    ui.showPanel('Performance Analysis', JSON.stringify(combinedAnalysis, null, 2));
+                } else {
+                    vscode.window.showInformationMessage(`Found ${combinedAnalysis.issues.length} performance issues.`);
+                }
             } catch (error) {
                 console.error('Error analyzing performance:', error);
                 vscode.window.showErrorMessage(`Error analyzing performance: ${error.message}`);
