@@ -11,7 +11,91 @@ class UILayer {
         this.hoverProviders = [];
         this.sidebarProviders = {};
         
+        // Read settings
+        this.settings = {};
+        this.updateSettings();
+        
+        // Watch for settings changes
+        vscode.workspace.onDidChangeConfiguration(this.updateSettings.bind(this));
+        
         this.initializeUI();
+    }
+    
+    /**
+     * Update settings from configuration
+     */
+    updateSettings() {
+        const config = vscode.workspace.getConfiguration('codewhiskers');
+        
+        this.settings = {
+            explanationStyle: config.get('explanationStyle', 'conversational'),
+            uiTheme: config.get('uiTheme', 'tabby'),
+            animationFrequency: config.get('animationFrequency', 'medium'),
+            enableEmojis: config.get('enableEmojis', true),
+            enableAnimations: config.get('enableAnimations', true),
+            enableDecorations: config.get('enableDecorations', true),
+            enableAutoRefresh: config.get('enableAutoRefresh', true),
+            showCatImages: config.get('showCatImages', true)
+        };
+        
+        // Log settings for debugging
+        console.log('CodeWhiskers settings updated:', this.settings);
+        
+        // Apply settings to existing UI elements
+        this.applySettingsToUI();
+    }
+    
+    /**
+     * Apply settings to UI elements
+     */
+    applySettingsToUI() {
+        // Apply settings to decorations if they exist
+        if (this.decorationTypes.lowComplexity) {
+            // If decorations are disabled, clear them
+            if (!this.settings.enableDecorations) {
+                this._clearAllDecorations();
+            }
+            
+            // Update decoration types based on settings
+            this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
+                border: '1px solid #80deea',
+                backgroundColor: 'rgba(128, 222, 234, 0.1)',
+                before: this.settings.enableEmojis ? {
+                    contentText: '😺',
+                    margin: '0 5px 0 0'
+                } : {}
+            });
+            
+            this.decorationTypes.mediumComplexity = vscode.window.createTextEditorDecorationType({
+                border: '1px solid #ffb74d',
+                backgroundColor: 'rgba(255, 183, 77, 0.1)',
+                before: this.settings.enableEmojis ? {
+                    contentText: '🐱',
+                    margin: '0 5px 0 0'
+                } : {}
+            });
+            
+            this.decorationTypes.highComplexity = vscode.window.createTextEditorDecorationType({
+                border: '1px solid #ff8a65',
+                backgroundColor: 'rgba(255, 138, 101, 0.1)',
+                before: this.settings.enableEmojis ? {
+                    contentText: '😾',
+                    margin: '0 5px 0 0'
+                } : {}
+            });
+        }
+    }
+    
+    /**
+     * Clear all decorations
+     * @private
+     */
+    _clearAllDecorations() {
+        if (vscode.window.activeTextEditor) {
+            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.lowComplexity, []);
+            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.mediumComplexity, []);
+            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.highComplexity, []);
+        }
     }
     
     /**
@@ -22,28 +106,28 @@ class UILayer {
         this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
             border: '1px solid #80deea',
             backgroundColor: 'rgba(128, 222, 234, 0.1)',
-            before: {
+            before: this.settings.enableEmojis ? {
                 contentText: '😺',
                 margin: '0 5px 0 0'
-            }
+            } : {}
         });
         
         this.decorationTypes.mediumComplexity = vscode.window.createTextEditorDecorationType({
             border: '1px solid #ffb74d',
             backgroundColor: 'rgba(255, 183, 77, 0.1)',
-            before: {
+            before: this.settings.enableEmojis ? {
                 contentText: '🐱',
                 margin: '0 5px 0 0'
-            }
+            } : {}
         });
         
         this.decorationTypes.highComplexity = vscode.window.createTextEditorDecorationType({
             border: '1px solid #ff8a65',
             backgroundColor: 'rgba(255, 138, 101, 0.1)',
-            before: {
+            before: this.settings.enableEmojis ? {
                 contentText: '😾',
                 margin: '0 5px 0 0'
-            }
+            } : {}
         });
         
         // Register hover providers for JavaScript and TypeScript
@@ -120,16 +204,19 @@ class UILayer {
      */
     _generateExplanationHTML(explanation, complexity, technicalDetails, isTechnical = false) {
         // Get the cat image based on complexity
-        const catImage = this._getCatImage(complexity);
+        const catImage = this.settings.showCatImages ? this._getCatImage(complexity) : null;
         
         // Get the animation CSS
-        const animationCSS = this._getAnimationCSS();
+        const animationCSS = this.settings.enableAnimations ? this._getAnimationCSS() : '';
         
         // Format the explanation text to fix spacing issues - preserve paragraphs but clean up other spacing
         const formattedExplanation = explanation
             .split('\n\n')
             .map(paragraph => paragraph.replace(/\s+/g, ' ').trim())
             .join('\n\n');
+        
+        // Determine if we should show emojis
+        const showCatIcon = this.settings.enableEmojis && this.settings.showCatImages;
         
         return `
             <!DOCTYPE html>
@@ -233,11 +320,11 @@ class UILayer {
             <body>
                 <div class="container">
                     <div class="header">
-                        ${complexity === 'low' 
-                            ? '<div class="cat-icon animate-bounce">😺</div>' 
+                        ${showCatIcon ? (complexity === 'low' 
+                            ? '<div class="cat-icon ' + (this.settings.enableAnimations ? 'animate-bounce' : '') + '">😺</div>' 
                             : complexity === 'medium' 
-                                ? '<div class="cat-icon animate-bounce">🐱</div>' 
-                                : '<div class="cat-icon animate-bounce">😾</div>'}
+                                ? '<div class="cat-icon ' + (this.settings.enableAnimations ? 'animate-bounce' : '') + '">🐱</div>' 
+                                : '<div class="cat-icon ' + (this.settings.enableAnimations ? 'animate-bounce' : '') + '">😾</div>') : ''}
                         <h2>
                             ${isTechnical ? 'Technical Details' : 'Code Explanation'} 
                             <span class="complexity-badge complexity-${complexity}">
@@ -255,11 +342,11 @@ class UILayer {
                     <div class="button-container">
                         ${!isTechnical && technicalDetails ? 
                             `<button class="action-button" id="technicalBtn">
-                                <span class="button-icon">🔍</span> View Technical Details
+                                <span class="button-icon">${this.settings.enableEmojis ? '🔍' : ''}</span> View Technical Details
                             </button>` : ''
                         }
                         <button class="action-button" id="docBtn">
-                            <span class="button-icon">📝</span> Add Documentation
+                            <span class="button-icon">${this.settings.enableEmojis ? '📝' : ''}</span> Add Documentation
                         </button>
                     </div>
                 </div>
@@ -2140,6 +2227,380 @@ class UILayer {
             </body>
             </html>
         `;
+    }
+    
+    /**
+     * Show the settings UI in a WebView panel
+     */
+    showSettingsUI() {
+        // Create WebView panel for settings
+        const panel = vscode.window.createWebviewPanel(
+            'codewhiskers.settings',
+            'CodeWhiskers Settings',
+            vscode.ViewColumn.Active,
+            { 
+                enableScripts: true,
+                retainContextWhenHidden: true
+            }
+        );
+        
+        // Generate HTML for the settings UI
+        panel.webview.html = this._generateSettingsHTML();
+        
+        // Handle messages from the webview
+        panel.webview.onDidReceiveMessage(
+            message => {
+                switch (message.command) {
+                    case 'saveSettings':
+                        this._saveSettings(message.settings);
+                        panel.webview.postMessage({ command: 'settingsSaved' });
+                        return;
+                        
+                    case 'resetSettings':
+                        this._resetSettings();
+                        panel.webview.postMessage({ 
+                            command: 'settingsReset',
+                            settings: this.settings
+                        });
+                        return;
+                        
+                    case 'getSettings':
+                        panel.webview.postMessage({ 
+                            command: 'currentSettings',
+                            settings: this.settings
+                        });
+                        return;
+                }
+            },
+            undefined,
+            this.context.subscriptions
+        );
+    }
+    
+    /**
+     * Generate HTML for settings panel
+     * @private
+     */
+    _generateSettingsHTML() {
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>CodeWhiskers Settings</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                        padding: 0;
+                        margin: 0;
+                        color: var(--vscode-editor-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    .container {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .header {
+                        margin-bottom: 20px;
+                        display: flex;
+                        align-items: center;
+                    }
+                    .header-icon {
+                        font-size: 24px;
+                        margin-right: 10px;
+                    }
+                    h2 {
+                        margin: 0;
+                    }
+                    .settings-section {
+                        margin-bottom: 30px;
+                    }
+                    .settings-section h3 {
+                        margin-top: 0;
+                        margin-bottom: 10px;
+                        border-bottom: 1px solid var(--vscode-panel-border);
+                        padding-bottom: 5px;
+                    }
+                    .setting-item {
+                        margin-bottom: 15px;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .setting-label {
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                    }
+                    .setting-description {
+                        margin-bottom: 8px;
+                        font-size: 12px;
+                        opacity: 0.8;
+                    }
+                    select, input[type="checkbox"] {
+                        padding: 5px;
+                        background-color: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 2px;
+                    }
+                    select {
+                        width: 100%;
+                        max-width: 300px;
+                    }
+                    .checkbox-container {
+                        display: flex;
+                        align-items: center;
+                    }
+                    .checkbox-container input {
+                        margin-right: 8px;
+                    }
+                    .action-buttons {
+                        display: flex;
+                        gap: 10px;
+                        margin-top: 20px;
+                    }
+                    .action-button {
+                        background-color: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        padding: 8px 12px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 13px;
+                    }
+                    .action-button:hover {
+                        background-color: var(--vscode-button-hoverBackground);
+                    }
+                    .reset-button {
+                        background-color: var(--vscode-errorForeground, #f44336);
+                    }
+                    .success-message {
+                        color: #4caf50;
+                        margin-top: 10px;
+                        font-weight: bold;
+                        display: none;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="header-icon">⚙️</div>
+                        <h2>CodeWhiskers Settings</h2>
+                    </div>
+                    
+                    <div class="settings-form">
+                        <div class="settings-section">
+                            <h3>Explanation Options</h3>
+                            
+                            <div class="setting-item">
+                                <label class="setting-label" for="explanationStyle">Explanation Style</label>
+                                <div class="setting-description">Choose the level of detail for code explanations</div>
+                                <select id="explanationStyle">
+                                    <option value="conversational">Conversational</option>
+                                    <option value="technical">Technical</option>
+                                    <option value="detailed">Detailed</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>UI Options</h3>
+                            
+                            <div class="setting-item">
+                                <label class="setting-label" for="uiTheme">Theme</label>
+                                <div class="setting-description">Choose the kitten theme for UI elements</div>
+                                <select id="uiTheme">
+                                    <option value="tabby">Tabby</option>
+                                    <option value="siamese">Siamese</option>
+                                    <option value="calico">Calico</option>
+                                    <option value="black">Black</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <label class="setting-label" for="animationFrequency">Animation Frequency</label>
+                                <div class="setting-description">Set how often animations should appear</div>
+                                <select id="animationFrequency">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="enableEmojis">
+                                    <label class="setting-label" for="enableEmojis">Enable Emojis</label>
+                                </div>
+                                <div class="setting-description">Show emoji icons in the UI</div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="enableAnimations">
+                                    <label class="setting-label" for="enableAnimations">Enable Animations</label>
+                                </div>
+                                <div class="setting-description">Enable UI animations</div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="showCatImages">
+                                    <label class="setting-label" for="showCatImages">Show Cat Images</label>
+                                </div>
+                                <div class="setting-description">Display cat images in explanation panels</div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>Code Editor Options</h3>
+                            
+                            <div class="setting-item">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="enableDecorations">
+                                    <label class="setting-label" for="enableDecorations">Enable Code Decorations</label>
+                                </div>
+                                <div class="setting-description">Show decorations in the code editor</div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="enableAutoRefresh">
+                                    <label class="setting-label" for="enableAutoRefresh">Auto-Refresh Analysis</label>
+                                </div>
+                                <div class="setting-description">Automatically refresh analysis when code changes</div>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="action-button" id="saveBtn">Save Settings</button>
+                            <button class="action-button reset-button" id="resetBtn">Reset to Defaults</button>
+                        </div>
+                        
+                        <div class="success-message" id="successMessage">
+                            Settings saved successfully! 😺
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    
+                    // Request current settings from extension
+                    window.addEventListener('load', () => {
+                        vscode.postMessage({
+                            command: 'getSettings'
+                        });
+                    });
+                    
+                    // Apply settings to the form
+                    function applySettings(settings) {
+                        document.getElementById('explanationStyle').value = settings.explanationStyle;
+                        document.getElementById('uiTheme').value = settings.uiTheme;
+                        document.getElementById('animationFrequency').value = settings.animationFrequency;
+                        document.getElementById('enableEmojis').checked = settings.enableEmojis;
+                        document.getElementById('enableAnimations').checked = settings.enableAnimations;
+                        document.getElementById('enableDecorations').checked = settings.enableDecorations;
+                        document.getElementById('enableAutoRefresh').checked = settings.enableAutoRefresh;
+                        document.getElementById('showCatImages').checked = settings.showCatImages;
+                    }
+                    
+                    // Get current settings from form
+                    function getFormSettings() {
+                        return {
+                            explanationStyle: document.getElementById('explanationStyle').value,
+                            uiTheme: document.getElementById('uiTheme').value,
+                            animationFrequency: document.getElementById('animationFrequency').value,
+                            enableEmojis: document.getElementById('enableEmojis').checked,
+                            enableAnimations: document.getElementById('enableAnimations').checked,
+                            enableDecorations: document.getElementById('enableDecorations').checked,
+                            enableAutoRefresh: document.getElementById('enableAutoRefresh').checked,
+                            showCatImages: document.getElementById('showCatImages').checked
+                        };
+                    }
+                    
+                    // Add event listeners to buttons
+                    document.getElementById('saveBtn').addEventListener('click', () => {
+                        const settings = getFormSettings();
+                        vscode.postMessage({
+                            command: 'saveSettings',
+                            settings: settings
+                        });
+                    });
+                    
+                    document.getElementById('resetBtn').addEventListener('click', () => {
+                        vscode.postMessage({
+                            command: 'resetSettings'
+                        });
+                    });
+                    
+                    // Handle messages from extension
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        
+                        switch (message.command) {
+                            case 'currentSettings':
+                                applySettings(message.settings);
+                                break;
+                                
+                            case 'settingsSaved':
+                                // Show success message
+                                const successMessage = document.getElementById('successMessage');
+                                successMessage.style.display = 'block';
+                                // Hide after a delay
+                                setTimeout(() => {
+                                    successMessage.style.display = 'none';
+                                }, 3000);
+                                break;
+                                
+                            case 'settingsReset':
+                                applySettings(message.settings);
+                                break;
+                        }
+                    });
+                </script>
+            </body>
+            </html>
+        `;
+    }
+    
+    /**
+     * Save settings to VS Code configuration
+     * @private
+     */
+    _saveSettings(newSettings) {
+        const config = vscode.workspace.getConfiguration('codewhiskers');
+        
+        // Update each setting
+        Object.keys(newSettings).forEach(key => {
+            config.update(key, newSettings[key], vscode.ConfigurationTarget.Global);
+        });
+        
+        // Update internal settings
+        this.updateSettings();
+    }
+    
+    /**
+     * Reset settings to defaults
+     * @private
+     */
+    _resetSettings() {
+        const config = vscode.workspace.getConfiguration('codewhiskers');
+        
+        // Reset each setting to its default
+        config.update('explanationStyle', undefined, vscode.ConfigurationTarget.Global);
+        config.update('uiTheme', undefined, vscode.ConfigurationTarget.Global);
+        config.update('animationFrequency', undefined, vscode.ConfigurationTarget.Global);
+        config.update('enableEmojis', undefined, vscode.ConfigurationTarget.Global);
+        config.update('enableAnimations', undefined, vscode.ConfigurationTarget.Global);
+        config.update('enableDecorations', undefined, vscode.ConfigurationTarget.Global);
+        config.update('enableAutoRefresh', undefined, vscode.ConfigurationTarget.Global);
+        config.update('showCatImages', undefined, vscode.ConfigurationTarget.Global);
+        
+        // Update internal settings
+        this.updateSettings();
     }
 }
 

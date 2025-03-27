@@ -85,6 +85,15 @@ function activate(context) {
         }
     });
 
+    const openSettingsCommand = vscode.commands.registerCommand('codewhiskers.openSettings', function() {
+        try {
+            ui.showSettingsUI();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error opening settings: ${error.message}`);
+            console.error('Error in openSettings:', error);
+        }
+    });
+
     // Register text editor change handler for real-time analysis
     const changeHandler = vscode.window.onDidChangeTextEditorSelection((event) => {
         // Only execute if the configuration allows real-time analysis
@@ -119,6 +128,7 @@ function activate(context) {
     context.subscriptions.push(traceVariableCommand);
     context.subscriptions.push(suggestDocumentationCommand);
     context.subscriptions.push(analyzeFunctionsCommand);
+    context.subscriptions.push(openSettingsCommand);
     context.subscriptions.push(changeHandler);
 }
 
