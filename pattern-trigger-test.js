@@ -88,14 +88,14 @@ async function triggerInefficientPromiseAll() {
 }
 
 // Sequential await in loop
-async function triggerSequentialAwait() {
-  const urls = ['url1', 'url2', 'url3', 'url4', 'url5'];
-  const results = [];
-  for (let i = 0; i < urls.length; i++) {
-    const response = await fetch(urls[i]);
-    const data = await response.json();
-    results.push(data);
-  }
+// Create an array of promises first
+const promises = items.map(async (item) => {
+    // Your async operation here
+    return await someAsyncOperation(item);
+});
+
+// Then await all promises at once
+const results = await Promise.all(promises);
   return results;
 }
 
@@ -156,8 +156,11 @@ function triggerObjectsInRender() {
 function triggerNestedLoops() {
   const matrix = [[1, 2], [3, 4], [5, 6]];
   const result = [];
-  for (let i = 0; i < matrix.length; i++) {
-    for (let j = 0; j < matrix[i].length; j++) {
+  const seen = new Set();
+for (let i = 0; i < matrix.length; i++) {
+  // Process in a single loop
+  if (!seen.has(key)) {
+    seen.add(key);
       result.push(matrix[i][j] * 2);
     }
   }
@@ -247,8 +250,11 @@ function triggerTooManyParams(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12,
 function triggerTripleNestedLoop() {
   const cube = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
   const result = [];
-  for (let i = 0; i < cube.length; i++) {
-    for (let j = 0; j < cube[i].length; j++) {
+  const seen = new Set();
+for (let i = 0; i < cube.length; i++) {
+  // Process in a single loop
+  if (!seen.has(key)) {
+    seen.add(key);
       for (let k = 0; k < cube[i][j].length; k++) {
         result.push(cube[i][j][k]);
       }
