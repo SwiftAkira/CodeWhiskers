@@ -10,53 +10,152 @@ class UILayer {
         this.decorationTypes = {};
         this.hoverProviders = [];
         this.sidebarProviders = {};
+        this.initialized = false;
         
-        // Read settings
-        this.settings = {};
-        this.updateSettings();
+        // Set default settings before trying to load
+        this.settings = {
+            explanationStyle: 'conversational',
+            uiTheme: 'tabby',
+            animationFrequency: 'medium',
+            enableEmojis: true,
+            enableAnimations: true,
+            enableDecorations: true,
+            enableAutoRefresh: true,
+            showCatImages: true
+        };
         
-        // Watch for settings changes
-        vscode.workspace.onDidChangeConfiguration(this.updateSettings.bind(this));
-        
-        this.initializeUI();
+        try {
+            // Read settings
+            this.updateSettings();
+            
+            // Watch for settings changes
+            vscode.workspace.onDidChangeConfiguration(this.updateSettings.bind(this));
+            
+            // Initialize UI with a slight delay to prevent startup blocking
+            setTimeout(() => {
+                this.initializeUI();
+            }, 500);
+        } catch (error) {
+            console.error('Error during UILayer construction:', error);
+        }
     }
     
     /**
      * Update settings from configuration
      */
     updateSettings() {
-        const config = vscode.workspace.getConfiguration('codewhiskers');
-        
-        this.settings = {
-            explanationStyle: config.get('explanationStyle', 'conversational'),
-            uiTheme: config.get('uiTheme', 'tabby'),
-            animationFrequency: config.get('animationFrequency', 'medium'),
-            enableEmojis: config.get('enableEmojis', true),
-            enableAnimations: config.get('enableAnimations', true),
-            enableDecorations: config.get('enableDecorations', true),
-            enableAutoRefresh: config.get('enableAutoRefresh', true),
-            showCatImages: config.get('showCatImages', true)
-        };
-        
-        // Log settings for debugging
-        console.log('CodeWhiskers settings updated:', this.settings);
+        try {
+            const config = vscode.workspace.getConfiguration('codewhiskers');
+            
+            // Use default values for all settings in case they're not defined
+            this.settings = {
+                explanationStyle: config.get('explanationStyle', 'conversational'),
+                uiTheme: config.get('uiTheme', 'tabby'),
+                animationFrequency: config.get('animationFrequency', 'medium'),
+                enableEmojis: config.get('enableEmojis', true),
+                enableAnimations: config.get('enableAnimations', true),
+                enableDecorations: config.get('enableDecorations', true),
+                enableAutoRefresh: config.get('enableAutoRefresh', true),
+                showCatImages: config.get('showCatImages', true)
+            };
+        } catch (error) {
+            // If settings retrieval fails, use defaults
+            console.warn('Failed to load settings, using defaults', error);
+            this.settings = {
+                explanationStyle: 'conversational',
+                uiTheme: 'tabby',
+                animationFrequency: 'medium',
+                enableEmojis: true,
+                enableAnimations: true,
+                enableDecorations: true,
+                enableAutoRefresh: true,
+                showCatImages: true
+            };
+        }
         
         // Apply settings to existing UI elements
-        this.applySettingsToUI();
+        if (this.initialized) {
+            this.applySettingsToUI();
+        }
     }
     
     /**
      * Apply settings to UI elements
      */
     applySettingsToUI() {
-        // Apply settings to decorations if they exist
-        if (this.decorationTypes.lowComplexity) {
-            // If decorations are disabled, clear them
-            if (!this.settings.enableDecorations) {
-                this._clearAllDecorations();
+        if (!this.initialized) {
+            return;
+        }
+        
+        try {
+            // Apply settings to decorations if they exist
+            if (this.decorationTypes.lowComplexity) {
+                // If decorations are disabled, clear them
+                if (!this.settings.enableDecorations) {
+                    this._clearAllDecorations();
+                }
+                
+                // Update decoration types based on settings
+                this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
+                    border: '1px solid #80deea',
+                    backgroundColor: 'rgba(128, 222, 234, 0.1)',
+                    before: this.settings.enableEmojis ? {
+                        contentText: '😺',
+                        margin: '0 5px 0 0'
+                    } : {}
+                });
+                
+                this.decorationTypes.mediumComplexity = vscode.window.createTextEditorDecorationType({
+                    border: '1px solid #ffb74d',
+                    backgroundColor: 'rgba(255, 183, 77, 0.1)',
+                    before: this.settings.enableEmojis ? {
+                        contentText: '🐱',
+                        margin: '0 5px 0 0'
+                    } : {}
+                });
+                
+                this.decorationTypes.highComplexity = vscode.window.createTextEditorDecorationType({
+                    border: '1px solid #ff8a65',
+                    backgroundColor: 'rgba(255, 138, 101, 0.1)',
+                    before: this.settings.enableEmojis ? {
+                        contentText: '😾',
+                        margin: '0 5px 0 0'
+                    } : {}
+                });
+            }
+        } catch (error) {
+            console.error('Error applying settings to UI:', error);
+        }
+    }
+    
+    /**
+     * Clear all decorations
+     * @private
+     */
+    _clearAllDecorations() {
+        try {
+            if (!this.initialized || !this.decorationTypes) {
+                return;
             }
             
-            // Update decoration types based on settings
+            if (vscode.window.activeTextEditor && this.decorationTypes.lowComplexity) {
+                vscode.window.activeTextEditor.setDecorations(this.decorationTypes.lowComplexity, []);
+                vscode.window.activeTextEditor.setDecorations(this.decorationTypes.mediumComplexity, []);
+                vscode.window.activeTextEditor.setDecorations(this.decorationTypes.highComplexity, []);
+            }
+        } catch (error) {
+            console.error('Error clearing decorations:', error);
+        }
+    }
+    
+    /**
+     * Initialize the UI components
+     */
+    initializeUI() {
+        try {
+            this.initialized = false;
+            
+            // Create decorations for different complexity levels
             this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
                 border: '1px solid #80deea',
                 backgroundColor: 'rgba(128, 222, 234, 0.1)',
@@ -83,58 +182,20 @@ class UILayer {
                     margin: '0 5px 0 0'
                 } : {}
             });
+            
+            // Register hover providers for JavaScript and TypeScript if needed
+            this.registerHoverProviders(['javascript', 'typescript']);
+            
+            // Initialize sidebar providers if needed
+            this.initializeSidebarProviders();
+            
+            // Mark initialization as complete
+            this.initialized = true;
+        } catch (error) {
+            console.error('Error initializing UI:', error);
+            // Ensure we don't try to use uninitialized UI components
+            this.initialized = false;
         }
-    }
-    
-    /**
-     * Clear all decorations
-     * @private
-     */
-    _clearAllDecorations() {
-        if (vscode.window.activeTextEditor) {
-            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.lowComplexity, []);
-            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.mediumComplexity, []);
-            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.highComplexity, []);
-        }
-    }
-    
-    /**
-     * Initialize the UI components
-     */
-    initializeUI() {
-        // Create decorations for different complexity levels
-        this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
-            border: '1px solid #80deea',
-            backgroundColor: 'rgba(128, 222, 234, 0.1)',
-            before: this.settings.enableEmojis ? {
-                contentText: '😺',
-                margin: '0 5px 0 0'
-            } : {}
-        });
-        
-        this.decorationTypes.mediumComplexity = vscode.window.createTextEditorDecorationType({
-            border: '1px solid #ffb74d',
-            backgroundColor: 'rgba(255, 183, 77, 0.1)',
-            before: this.settings.enableEmojis ? {
-                contentText: '🐱',
-                margin: '0 5px 0 0'
-            } : {}
-        });
-        
-        this.decorationTypes.highComplexity = vscode.window.createTextEditorDecorationType({
-            border: '1px solid #ff8a65',
-            backgroundColor: 'rgba(255, 138, 101, 0.1)',
-            before: this.settings.enableEmojis ? {
-                contentText: '😾',
-                margin: '0 5px 0 0'
-            } : {}
-        });
-        
-        // Register hover providers for JavaScript and TypeScript
-        this.registerHoverProviders(['javascript', 'typescript']);
-        
-        // Initialize sidebar providers
-        this.initializeSidebarProviders();
     }
     
     /**
