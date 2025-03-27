@@ -7,6 +7,7 @@ const CatThemeManager = require('./src/catThemeManager');
 const PerformanceAnalyzer = require('./src/performanceAnalyzer');
 const { AdvancedParser } = require('./src/advancedParser');
 const { EnhancedPerformanceAnalyzer } = require('./src/enhancedPerformance');
+const { WhiskerCodeLensProvider, WhiskerCodeActionProvider } = require('./src/codeLensProvider');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -18,6 +19,7 @@ function activate(context) {
         // Initialize components with error handling
         let parser, explainer, ui, complexityVisualizer, catThemeManager, performanceAnalyzer;
         let advancedParser, enhancedPerformanceAnalyzer;
+        let codeLensProvider, codeActionProvider;
         
         try {
             parser = new Parser();
@@ -81,6 +83,22 @@ function activate(context) {
         } catch (error) {
             console.error('Error initializing EnhancedPerformanceAnalyzer:', error);
             enhancedPerformanceAnalyzer = null;
+        }
+        
+        try {
+            codeLensProvider = new WhiskerCodeLensProvider();
+            console.log('CodeLensProvider initialized successfully');
+        } catch (error) {
+            console.error('Error initializing CodeLensProvider:', error);
+            codeLensProvider = null;
+        }
+        
+        try {
+            codeActionProvider = new WhiskerCodeActionProvider();
+            console.log('CodeActionProvider initialized successfully');
+        } catch (error) {
+            console.error('Error initializing CodeActionProvider:', error);
+            codeActionProvider = null;
         }
         
         // Connect components that need references to each other
@@ -432,6 +450,180 @@ function activate(context) {
             }
         });
 
+        // Register the Code Lens provider
+        const supportedLanguages = ['javascript', 'typescript', 'javascriptreact', 'typescriptreact'];
+        
+        if (codeLensProvider) {
+            for (const language of supportedLanguages) {
+                const codeLensProviderDisposable = vscode.languages.registerCodeLensProvider(
+                    { language },
+                    codeLensProvider
+                );
+                context.subscriptions.push(codeLensProviderDisposable);
+            }
+            
+            // Listen for document changes to refresh Code Lenses
+            context.subscriptions.push(
+                vscode.workspace.onDidChangeTextDocument(event => {
+                    if (supportedLanguages.includes(event.document.languageId)) {
+                        codeLensProvider.refresh();
+                    }
+                })
+            );
+        }
+        
+        // Register the Code Action provider
+        if (codeActionProvider) {
+            for (const language of supportedLanguages) {
+                const codeActionProviderDisposable = vscode.languages.registerCodeActionsProvider(
+                    { language },
+                    codeActionProvider,
+                    {
+                        providedCodeActionKinds: [
+                            vscode.CodeActionKind.QuickFix,
+                            vscode.CodeActionKind.Refactor
+                        ]
+                    }
+                );
+                context.subscriptions.push(codeActionProviderDisposable);
+            }
+        }
+        
+        // Register new commands for Code Lens and Quick Fix functionality
+        const showCodeMetricsCommand = vscode.commands.registerCommand('whiskercode.showCodeMetrics', async (uri, line, metricType) => {
+            try {
+                if (!ui) {
+                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                const document = await vscode.workspace.openTextDocument(uri);
+                const editor = await vscode.window.showTextDocument(document);
+                
+                // Highlight the relevant line
+                const position = new vscode.Position(line - 1, 0);
+                editor.selection = new vscode.Selection(position, position);
+                editor.revealRange(new vscode.Range(position, position));
+                
+                // Show different metrics based on the type
+                switch (metricType) {
+                    case 'complexity':
+                        vscode.commands.executeCommand('whiskercode.analyzeComplexity');
+                        break;
+                    case 'performance':
+                        vscode.commands.executeCommand('whiskercode.detectPerformance');
+                        break;
+                    case 'refactor':
+                        // Show refactoring suggestions specific to this function
+                        const lineText = document.lineAt(line - 1).text;
+                        const functionMatch = /function\s+(\w+)|const\s+(\w+)\s*=/.exec(lineText);
+                        const functionName = functionMatch ? (functionMatch[1] || functionMatch[2]) : 'this function';
+                        
+                        ui.showRefactoringOptions(functionName, editor);
+                        break;
+                    case 'class':
+                        // Show class analysis
+                        const classLineText = document.lineAt(line - 1).text;
+                        const classMatch = /class\s+(\w+)/.exec(classLineText);
+                        const className = classMatch ? classMatch[1] : 'this class';
+                        
+                        ui.showClassAnalysis(className, editor);
+                        break;
+                    case 'react':
+                        // Show React component analysis
+                        const reactLineText = document.lineAt(line - 1).text;
+                        const reactMatch = /function\s+(\w+)|const\s+(\w+)\s*=/.exec(reactLineText);
+                        const componentName = reactMatch ? (reactMatch[1] || reactMatch[2]) : 'this component';
+                        
+                        ui.showReactComponentAnalysis(componentName, editor);
+                        break;
+                }
+            } catch (error) {
+                console.error('Error showing code metrics:', error);
+                vscode.window.showErrorMessage(`Error showing code metrics: ${error.message}`);
+            }
+        });
+        
+        const applyQuickFixCommand = vscode.commands.registerCommand('whiskercode.applyQuickFix', async (uri, range, issue) => {
+            try {
+                if (!ui) {
+                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                const document = await vscode.workspace.openTextDocument(uri);
+                const editor = await vscode.window.showTextDocument(document);
+                
+                // Generate the fix based on the issue type
+                let replacement = '';
+                switch (issue.category) {
+                    case 'algorithmicComplexity':
+                        // Suggest code restructuring for algorithmic complexity issues
+                        ui.showAlgorithmicComplexityFixOptions(issue, editor);
+                        break;
+                    case 'memoryManagement':
+                        // Apply memory management fixes
+                        if (issue.match.includes('push')) {
+                            // Pre-allocate array fix
+                            const arrayNameMatch = /const\s+(\w+)\s*=\s*\[\s*\]/.exec(issue.match);
+                            if (arrayNameMatch) {
+                                const arrayName = arrayNameMatch[1];
+                                replacement = issue.match.replace(
+                                    `const ${arrayName} = []`,
+                                    `const ${arrayName} = new Array(estimatedSize)`
+                                );
+                                
+                                await editor.edit(editBuilder => {
+                                    editBuilder.replace(range, replacement);
+                                });
+                                
+                                // Show information message with further optimization suggestions
+                                vscode.window.showInformationMessage(
+                                    'Array pre-allocated. Replace "estimatedSize" with the expected length.'
+                                );
+                            }
+                        } else {
+                            // Default case: show optimization panel
+                            ui.showPerformanceFixOptions(issue, editor);
+                        }
+                        break;
+                    case 'asyncPatterns':
+                        // Apply async pattern fixes
+                        if (issue.match.includes('for') && issue.match.includes('await')) {
+                            // Sequential await in loop fix
+                            ui.showAsyncFixOptions(issue, editor);
+                        } else {
+                            ui.showPerformanceFixOptions(issue, editor);
+                        }
+                        break;
+                    default:
+                        // Default: show options in UI
+                        ui.showPerformanceFixOptions(issue, editor);
+                }
+            } catch (error) {
+                console.error('Error applying quick fix:', error);
+                vscode.window.showErrorMessage(`Error applying quick fix: ${error.message}`);
+            }
+        });
+        
+        const applyRefactoringCommand = vscode.commands.registerCommand('whiskercode.applyRefactoring', async (uri, range, opportunity) => {
+            try {
+                if (!ui) {
+                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                const document = await vscode.workspace.openTextDocument(uri);
+                const editor = await vscode.window.showTextDocument(document);
+                
+                // Show refactoring options through UI
+                ui.showRefactoringPanel(opportunity, editor);
+            } catch (error) {
+                console.error('Error applying refactoring:', error);
+                vscode.window.showErrorMessage(`Error applying refactoring: ${error.message}`);
+            }
+        });
+        
         // Register all commands
         context.subscriptions.push(
             explainCodeCommand,
@@ -442,7 +634,10 @@ function activate(context) {
             analyzeComplexityCommand,
             visualizeDependenciesCommand,
             changeCatThemeCommand,
-            detectPerformanceCommand
+            detectPerformanceCommand,
+            showCodeMetricsCommand,
+            applyQuickFixCommand,
+            applyRefactoringCommand
         );
         
         // Make theme manager available to UI components

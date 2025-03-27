@@ -2,7 +2,7 @@
   "name": "whiskercode",
   "displayName": "WhiskerCode",
   "description": "Understanding unfamiliar code through intuitive explanations with a kitten-themed UI",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "Swift123",
   "engines": {
     "vscode": "^1.60.0"
@@ -323,7 +323,42 @@
           "priority": 100
         }
       ]
-    }
+    },
+    "codeLens": [
+      {
+        "language": "javascript",
+        "command": "whiskercode.showCodeMetrics"
+      },
+      {
+        "language": "typescript",
+        "command": "whiskercode.showCodeMetrics"
+      },
+      {
+        "language": "javascriptreact",
+        "command": "whiskercode.showCodeMetrics"
+      },
+      {
+        "language": "typescriptreact",
+        "command": "whiskercode.showCodeMetrics"
+      }
+    ],
+    "codeActions": [
+      {
+        "languages": ["javascript", "typescript", "javascriptreact", "typescriptreact"],
+        "actions": [
+          {
+            "kind": "whiskercode.fixPerformanceIssue",
+            "title": "Fix performance issue with WhiskerCode",
+            "description": "Apply recommended performance optimization"
+          },
+          {
+            "kind": "whiskercode.refactorComplexCode",
+            "title": "Refactor complex code with WhiskerCode",
+            "description": "Apply suggested code simplification"
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

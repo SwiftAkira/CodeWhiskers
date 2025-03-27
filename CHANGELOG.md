@@ -2,6 +2,23 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.2.0] - 2024-03-20
+
+### Added
+- Code Lens integration
+  - View complexity metrics directly above functions
+  - Performance issue indicators in the editor
+  - Refactoring opportunities shown inline
+  - React component-specific insights
+- Quick Fix suggestions
+  - One-click fixes for performance issues
+  - Automated refactoring options
+  - Context-aware code improvements
+- Code Actions for common issues
+  - Fix memory management problems
+  - Optimize async/await patterns
+  - Simplify complex logic
+
 ## [1.1.0] - 2024-03-20
 
 ### Added
