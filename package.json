@@ -13,7 +13,12 @@
   ],
   "activationEvents": [
     "onLanguage:javascript",
-    "onLanguage:typescript"
+    "onLanguage:typescript",
+    "onLanguage:python",
+    "onLanguage:java",
+    "onLanguage:csharp",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescriptreact"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -76,19 +81,19 @@
         {
           "command": "codewhiskers.suggestDocumentation",
           "group": "navigation",
-          "when": "editorLangId == javascript || editorLangId == typescript"
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
           "command": "codewhiskers.analyzeFunctions",
           "group": "navigation",
-          "when": "editorLangId == javascript || editorLangId == typescript"
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         }
       ],
       "editor/title/run": [
         {
           "command": "codewhiskers.explainCode",
           "group": "navigation",
-          "when": "editorLangId == javascript || editorLangId == typescript"
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         }
       ],
       "commandPalette": [
@@ -163,6 +168,21 @@
           "type": "boolean",
           "default": true,
           "description": "Show cat images in the explanation panels"
+        },
+        "codewhiskers.defaultLanguageSyntax": {
+          "type": "string",
+          "default": "automatic",
+          "enum": [
+            "automatic",
+            "javascript",
+            "typescript",
+            "python",
+            "java", 
+            "csharp",
+            "javascriptreact",
+            "typescriptreact"
+          ],
+          "description": "Default syntax highlighting language for code snippets"
         }
       }
     },
