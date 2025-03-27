@@ -26,8 +26,6 @@ function activate(context) {
                 return;
             }
             
-            console.log('Selected code for explanation:', text);
-            
             const language = editor.document.languageId;
             try {
                 const parsedCode = parser.parseCode(text, language);
@@ -35,7 +33,6 @@ function activate(context) {
                 ui.showExplanation(explanation, editor);
             } catch (error) {
                 vscode.window.showErrorMessage(`Error explaining code: ${error.message}`);
-                console.error('Error in explainCode:', error);
             }
         }
     });
@@ -85,15 +82,6 @@ function activate(context) {
         }
     });
 
-    const openSettingsCommand = vscode.commands.registerCommand('codewhiskers.openSettings', function() {
-        try {
-            ui.showSettingsUI();
-        } catch (error) {
-            vscode.window.showErrorMessage(`Error opening settings: ${error.message}`);
-            console.error('Error in openSettings:', error);
-        }
-    });
-
     // Register text editor change handler for real-time analysis
     const changeHandler = vscode.window.onDidChangeTextEditorSelection((event) => {
         // Only execute if the configuration allows real-time analysis
@@ -128,7 +116,6 @@ function activate(context) {
     context.subscriptions.push(traceVariableCommand);
     context.subscriptions.push(suggestDocumentationCommand);
     context.subscriptions.push(analyzeFunctionsCommand);
-    context.subscriptions.push(openSettingsCommand);
     context.subscriptions.push(changeHandler);
 }
 

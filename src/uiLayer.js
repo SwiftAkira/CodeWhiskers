@@ -11,91 +11,7 @@ class UILayer {
         this.hoverProviders = [];
         this.sidebarProviders = {};
         
-        // Read settings
-        this.settings = {};
-        this.updateSettings();
-        
-        // Watch for settings changes
-        vscode.workspace.onDidChangeConfiguration(this.updateSettings.bind(this));
-        
         this.initializeUI();
-    }
-    
-    /**
-     * Update settings from configuration
-     */
-    updateSettings() {
-        const config = vscode.workspace.getConfiguration('codewhiskers');
-        
-        this.settings = {
-            explanationStyle: config.get('explanationStyle', 'conversational'),
-            uiTheme: config.get('uiTheme', 'tabby'),
-            animationFrequency: config.get('animationFrequency', 'medium'),
-            enableEmojis: config.get('enableEmojis', true),
-            enableAnimations: config.get('enableAnimations', true),
-            enableDecorations: config.get('enableDecorations', true),
-            enableAutoRefresh: config.get('enableAutoRefresh', true),
-            showCatImages: config.get('showCatImages', true)
-        };
-        
-        // Log settings for debugging
-        console.log('CodeWhiskers settings updated:', this.settings);
-        
-        // Apply settings to existing UI elements
-        this.applySettingsToUI();
-    }
-    
-    /**
-     * Apply settings to UI elements
-     */
-    applySettingsToUI() {
-        // Apply settings to decorations if they exist
-        if (this.decorationTypes.lowComplexity) {
-            // If decorations are disabled, clear them
-            if (!this.settings.enableDecorations) {
-                this._clearAllDecorations();
-            }
-            
-            // Update decoration types based on settings
-            this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
-                border: '1px solid #80deea',
-                backgroundColor: 'rgba(128, 222, 234, 0.1)',
-                before: this.settings.enableEmojis ? {
-                    contentText: '😺',
-                    margin: '0 5px 0 0'
-                } : {}
-            });
-            
-            this.decorationTypes.mediumComplexity = vscode.window.createTextEditorDecorationType({
-                border: '1px solid #ffb74d',
-                backgroundColor: 'rgba(255, 183, 77, 0.1)',
-                before: this.settings.enableEmojis ? {
-                    contentText: '🐱',
-                    margin: '0 5px 0 0'
-                } : {}
-            });
-            
-            this.decorationTypes.highComplexity = vscode.window.createTextEditorDecorationType({
-                border: '1px solid #ff8a65',
-                backgroundColor: 'rgba(255, 138, 101, 0.1)',
-                before: this.settings.enableEmojis ? {
-                    contentText: '😾',
-                    margin: '0 5px 0 0'
-                } : {}
-            });
-        }
-    }
-    
-    /**
-     * Clear all decorations
-     * @private
-     */
-    _clearAllDecorations() {
-        if (vscode.window.activeTextEditor) {
-            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.lowComplexity, []);
-            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.mediumComplexity, []);
-            vscode.window.activeTextEditor.setDecorations(this.decorationTypes.highComplexity, []);
-        }
     }
     
     /**
@@ -106,28 +22,28 @@ class UILayer {
         this.decorationTypes.lowComplexity = vscode.window.createTextEditorDecorationType({
             border: '1px solid #80deea',
             backgroundColor: 'rgba(128, 222, 234, 0.1)',
-            before: this.settings.enableEmojis ? {
+            before: {
                 contentText: '😺',
                 margin: '0 5px 0 0'
-            } : {}
+            }
         });
         
         this.decorationTypes.mediumComplexity = vscode.window.createTextEditorDecorationType({
             border: '1px solid #ffb74d',
             backgroundColor: 'rgba(255, 183, 77, 0.1)',
-            before: this.settings.enableEmojis ? {
+            before: {
                 contentText: '🐱',
                 margin: '0 5px 0 0'
-            } : {}
+            }
         });
         
         this.decorationTypes.highComplexity = vscode.window.createTextEditorDecorationType({
             border: '1px solid #ff8a65',
             backgroundColor: 'rgba(255, 138, 101, 0.1)',
-            before: this.settings.enableEmojis ? {
+            before: {
                 contentText: '😾',
                 margin: '0 5px 0 0'
-            } : {}
+            }
         });
         
         // Register hover providers for JavaScript and TypeScript
@@ -138,14 +54,29 @@ class UILayer {
     }
     
     /**
-     * Show an explanation of code in a WebView panel
+     * Show an explanation of code in a WebviewPanel
      * @param {object} explanation - Explanation from ExplanationEngine
      * @param {vscode.TextEditor} editor - The active text editor
      */
     showExplanation(explanation, editor) {
-        // Get active theme and explanation preference
+        // Get active theme and animation frequency for UI customization
         const config = vscode.workspace.getConfiguration('codewhiskers');
+        const uiTheme = config.get('uiTheme');
+        const animationFreq = config.get('animationFrequency');
         const explanationStyle = config.get('explanationStyle');
+        
+        // Create webview panel
+        const panel = vscode.window.createWebviewPanel(
+            'codewhiskers.explanation',
+            'CodeWhiskers: Code Explanation',
+            vscode.ViewColumn.Beside,
+            {
+                enableScripts: true,
+                localResourceRoots: [
+                    vscode.Uri.joinPath(this.context.extensionUri, 'resources')
+                ]
+            }
+        );
         
         // Get the appropriate explanation text based on user settings
         let explanationText = explanation.simple;
@@ -155,263 +86,21 @@ class UILayer {
             explanationText = explanation.technical;
         }
         
-        // Apply decorations to show complexity in the editor
-        this._applyComplexityDecorations(editor, explanation.complexity);
-        
-        // Create WebView panel for explanation
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.explanation',
-            'CodeWhiskers: Code Explanation',
-            vscode.ViewColumn.Beside,
-            { enableScripts: true }
-        );
-        
-        // Generate HTML for the explanation
+        // Create HTML content for explanation
         panel.webview.html = this._generateExplanationHTML(
             explanationText,
             explanation.complexity,
-            explanation.technical
+            uiTheme,
+            animationFreq
         );
         
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'showTechnical':
-                        if (explanation.technical) {
-                            panel.webview.html = this._generateExplanationHTML(
-                                explanation.technical,
-                                explanation.complexity,
-                                null,
-                                true
-                            );
-                        }
-                        return;
-                        
-                    case 'addDocumentation':
-                        this._suggestInlineDocumentation(editor);
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
+        // Apply decorations to show complexity in the editor
+        this._applyComplexityDecorations(editor, explanation.complexity);
     }
     
     /**
-     * Generate HTML for explanation panel
-     * @private
-     */
-    _generateExplanationHTML(explanation, complexity, technicalDetails, isTechnical = false) {
-        // Get the cat image based on complexity
-        const catImage = this.settings.showCatImages ? this._getCatImage(complexity) : null;
-        
-        // Get the animation CSS
-        const animationCSS = this.settings.enableAnimations ? this._getAnimationCSS() : '';
-        
-        // Format the explanation text to fix spacing issues - preserve paragraphs but clean up other spacing
-        const formattedExplanation = explanation
-            .split('\n\n')
-            .map(paragraph => paragraph.replace(/\s+/g, ' ').trim())
-            .join('\n\n');
-        
-        // Determine if we should show emojis
-        const showCatIcon = this.settings.enableEmojis && this.settings.showCatImages;
-        
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>CodeWhiskers Explanation</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .cat-icon {
-                        font-size: 42px;
-                        margin-right: 15px;
-                        width: 42px;
-                        height: 42px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    .explanation-box {
-                        background-color: var(--vscode-editor-inactiveSelectionBackground, #f5f5f5);
-                        color: var(--vscode-editor-foreground, #333333);
-                        border-radius: 5px;
-                        padding: 20px;
-                        margin-bottom: 15px;
-                        font-size: 14px;
-                        line-height: 1.6;
-                    }
-                    .explanation-text {
-                        margin: 0;
-                        padding: 0;
-                        white-space: normal;
-                    }
-                    .explanation-text p {
-                        margin-bottom: 12px;
-                    }
-                    .complexity-badge {
-                        display: inline-block;
-                        padding: 4px 8px;
-                        border-radius: 4px;
-                        font-size: 12px;
-                        font-weight: bold;
-                        margin-left: 10px;
-                        text-transform: uppercase;
-                    }
-                    .complexity-low {
-                        background-color: #a5d6a7;
-                        color: #1b5e20;
-                    }
-                    .complexity-medium {
-                        background-color: #fff59d;
-                        color: #f57f17;
-                    }
-                    .complexity-high {
-                        background-color: #ef9a9a;
-                        color: #b71c1c;
-                    }
-                    .button-container {
-                        display: flex;
-                        margin-top: 20px;
-                        gap: 10px;
-                    }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 13px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                    .button-icon {
-                        margin-right: 6px;
-                        font-size: 16px;
-                    }
-                    
-                    ${animationCSS}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        ${showCatIcon ? (complexity === 'low' 
-                            ? '<div class="cat-icon ' + (this.settings.enableAnimations ? 'animate-bounce' : '') + '">😺</div>' 
-                            : complexity === 'medium' 
-                                ? '<div class="cat-icon ' + (this.settings.enableAnimations ? 'animate-bounce' : '') + '">🐱</div>' 
-                                : '<div class="cat-icon ' + (this.settings.enableAnimations ? 'animate-bounce' : '') + '">😾</div>') : ''}
-                        <h2>
-                            ${isTechnical ? 'Technical Details' : 'Code Explanation'} 
-                            <span class="complexity-badge complexity-${complexity}">
-                                ${complexity}
-                            </span>
-                        </h2>
-                    </div>
-                    
-                    <div class="explanation-box">
-                        <div class="explanation-text">
-                            ${formattedExplanation.split('\n\n').map(p => `<p>${p}</p>`).join('')}
-                        </div>
-                    </div>
-                    
-                    <div class="button-container">
-                        ${!isTechnical && technicalDetails ? 
-                            `<button class="action-button" id="technicalBtn">
-                                <span class="button-icon">${this.settings.enableEmojis ? '🔍' : ''}</span> View Technical Details
-                            </button>` : ''
-                        }
-                        <button class="action-button" id="docBtn">
-                            <span class="button-icon">${this.settings.enableEmojis ? '📝' : ''}</span> Add Documentation
-                        </button>
-                    </div>
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Add event listeners to buttons
-                    document.getElementById('docBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'addDocumentation'
-                        });
-                    });
-                    
-                    ${!isTechnical && technicalDetails ? 
-                        `document.getElementById('technicalBtn').addEventListener('click', () => {
-                            vscode.postMessage({
-                                command: 'showTechnical'
-                            });
-                        });` : ''
-                    }
-                </script>
-            </body>
-            </html>
-        `;
-    }
-    
-    /**
-     * Get cat image based on complexity
-     * @private
-     */
-    _getCatImage(complexity) {
-        // Instead of SVG data URIs, use direct emoji references
-        switch (complexity) {
-            case 'low':
-                return 'https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/check.svg';
-            case 'medium':
-                return 'https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/warning.svg';
-            case 'high':
-                return 'https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/error.svg';
-            default:
-                return 'https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/info.svg';
-        }
-    }
-    
-    /**
-     * Get CSS for cat animations
-     * @private
-     */
-    _getAnimationCSS() {
-        return `
-            @keyframes bounce {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-10px); }
-            }
-            
-            .animate-bounce {
-                animation: bounce 2s infinite ease-in-out;
-            }
-        `;
-    }
-    
-    /**
-     * Show variable traces using a WebView panel
-     * @param {Array<object>} variableUsages - Array of variable usage objects
+     * Show variable trace visualizations in the editor
+     * @param {Array<object>} variableUsages - Variable usage information
      * @param {vscode.TextEditor} editor - The active text editor
      */
     showVariableTraces(variableUsages, editor) {
@@ -420,524 +109,103 @@ class UILayer {
             return;
         }
         
-        // Create a WebView panel for variable traces
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.variableTraces',
-            `Variable Traces: ${variableUsages[0].name}`,
-            vscode.ViewColumn.Beside,
-            { enableScripts: true }
-        );
+        // Create a decoration type for variable traces with paw prints
+        const variableDecoration = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(179, 157, 219, 0.3)',
+            border: '1px solid #b39ddb',
+            after: {
+                contentText: '🐾',
+                margin: '0 0 0 5px'
+            }
+        });
         
-        // Generate HTML for the variable traces
-        panel.webview.html = this._generateVariableTracesHTML(variableUsages);
+        // Create decoration type for variable definitions
+        const definitionDecoration = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(129, 199, 132, 0.3)',
+            border: '1px solid #81c784',
+            after: {
+                contentText: '🐈',
+                margin: '0 0 0 5px'
+            }
+        });
         
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'jumpToLocation':
-                        const line = parseInt(message.line);
-                        const column = parseInt(message.column);
-                        
-                        if (!isNaN(line) && !isNaN(column)) {
-                            // Jump to the location of the variable usage
-                            const position = new vscode.Position(line - 1, column);
-                            editor.selection = new vscode.Selection(position, position);
-                            editor.revealRange(
-                                new vscode.Range(position, position),
-                                vscode.TextEditorRevealType.InCenter
-                            );
-                            
-                            // Apply decoration to highlight the usage
-                            const usage = variableUsages.find(u => u.line === line && u.column === column);
-                            if (usage) {
-                                const range = new vscode.Range(
-                                    new vscode.Position(usage.line - 1, usage.column),
-                                    new vscode.Position(usage.line - 1, usage.column + usage.name.length)
-                                );
-                                
-                                const decoration = vscode.window.createTextEditorDecorationType({
-                                    backgroundColor: 'rgba(255, 222, 173, 0.5)',
-                                    border: '1px solid #ffd700'
-                                });
-                                
-                                editor.setDecorations(decoration, [range]);
-                                
-                                // Remove decoration after a delay
-                                setTimeout(() => {
-                                    decoration.dispose();
-                                }, 3000);
-                            }
-                        }
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
-    }
-    
-    /**
-     * Generate HTML for variable traces panel
-     * @private
-     */
-    _generateVariableTracesHTML(variableUsages) {
         // Separate definitions from usages
-        const definitions = variableUsages.filter(usage => 
-            usage.type === 'definition' || usage.type === 'declaration'
-        );
-        const usages = variableUsages.filter(usage => 
-            usage.type !== 'definition' && usage.type !== 'declaration'
+        const definitions = variableUsages.filter(usage => usage.isDefinition);
+        const usages = variableUsages.filter(usage => !usage.isDefinition);
+        
+        // Apply the decorations
+        editor.setDecorations(
+            variableDecoration, 
+            usages.map(usage => usage.range)
         );
         
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Variable Traces</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .header-icon {
-                        font-size: 24px;
-                        margin-right: 10px;
-                    }
-                    h2 {
-                        margin: 0;
-                    }
-                    .section-title {
-                        margin-top: 20px;
-                        margin-bottom: 10px;
-                        font-weight: bold;
-                        font-size: 16px;
-                        color: var(--vscode-editor-foreground);
-                        border-bottom: 1px solid var(--vscode-panel-border);
-                        padding-bottom: 5px;
-                    }
-                    .trace-card {
-                        background-color: var(--vscode-editor-inactiveSelectionBackground, #f5f5f5);
-                        color: var(--vscode-editor-foreground, #333333);
-                        border-radius: 5px;
-                        padding: 12px;
-                        margin-bottom: 10px;
-                        cursor: pointer;
-                        border-left: 3px solid #78909c;
-                        transition: background-color 0.2s;
-                    }
-                    .trace-card:hover {
-                        background-color: var(--vscode-list-hoverBackground, #e0e0e0);
-                    }
-                    .trace-card.definition {
-                        border-left-color: #81c784;
-                    }
-                    .trace-card.read {
-                        border-left-color: #64b5f6;
-                    }
-                    .trace-card.write {
-                        border-left-color: #ffb74d;
-                    }
-                    .location {
-                        font-family: monospace;
-                        font-weight: bold;
-                        margin-bottom: 5px;
-                    }
-                    .context {
-                        font-family: monospace;
-                        white-space: pre-wrap;
-                        padding: 5px;
-                        background-color: var(--vscode-editor-background);
-                        border-radius: 3px;
-                        margin-top: 5px;
-                    }
-                    .location::before {
-                        content: "📍";
-                        margin-right: 5px;
-                    }
-                    .usage-type {
-                        display: inline-block;
-                        padding: 2px 6px;
-                        border-radius: 10px;
-                        font-size: 11px;
-                        margin-left: 8px;
-                        text-transform: uppercase;
-                    }
-                    .type-definition {
-                        background-color: #81c784;
-                        color: #1b5e20;
-                    }
-                    .type-read {
-                        background-color: #64b5f6;
-                        color: #0d47a1;
-                    }
-                    .type-write {
-                        background-color: #ffb74d;
-                        color: #e65100;
-                    }
-                    .type-update {
-                        background-color: #ba68c8;
-                        color: #4a148c;
-                    }
-                    .variable-name {
-                        color: var(--vscode-symbolIcon-variableForeground, #75beff);
-                        font-weight: bold;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="header-icon">🔍</div>
-                        <h2>Variable Traces: <span class="variable-name">${variableUsages[0].name}</span></h2>
-                    </div>
-                    
-                    <div class="summary">
-                        Found ${definitions.length} definition(s) and ${usages.length} usage(s).
-                    </div>
-                    
-                    ${definitions.length > 0 ? `
-                        <div class="section-title">Definitions</div>
-                        <div class="definitions-container">
-                            ${definitions.map(def => `
-                                <div class="trace-card definition" data-line="${def.line}" data-column="${def.column}">
-                                    <div class="location">
-                                        Line ${def.line}
-                                        <span class="usage-type type-definition">${def.type}</span>
-                                    </div>
-                                    <div class="description">${def.description || ''}</div>
-                                    <div class="context">${def.context.trim()}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    ${usages.length > 0 ? `
-                        <div class="section-title">Usages</div>
-                        <div class="usages-container">
-                            ${usages.map(usage => `
-                                <div class="trace-card ${usage.type === 'read' ? 'read' : 'write'}" data-line="${usage.line}" data-column="${usage.column}">
-                                    <div class="location">
-                                        Line ${usage.line}
-                                        <span class="usage-type type-${usage.type}">${usage.type}</span>
-                                    </div>
-                                    <div class="description">${usage.description || ''}</div>
-                                    <div class="context">${usage.context.trim()}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Add click handlers to all trace cards
-                    document.querySelectorAll('.trace-card').forEach(card => {
-                        card.addEventListener('click', () => {
-                            const line = card.getAttribute('data-line');
-                            const column = card.getAttribute('data-column');
-                            
-                            vscode.postMessage({
-                                command: 'jumpToLocation',
-                                line: line,
-                                column: column
-                            });
-                        });
-                    });
-                </script>
-            </body>
-            </html>
-        `;
+        editor.setDecorations(
+            definitionDecoration, 
+            definitions.map(def => def.range)
+        );
+        
+        // Show summary in status bar
+        vscode.window.setStatusBarMessage(
+            `Found ${definitions.length} definition(s) and ${usages.length} usage(s) of this variable`, 
+            5000
+        );
+        
+        // Store the decorated ranges to remove them later
+        this.currentVariableDecorations = {
+            usages: variableDecoration,
+            definitions: definitionDecoration
+        };
+        
+        // Remove decorations after a delay
+        setTimeout(() => {
+            if (this.currentVariableDecorations) {
+                editor.setDecorations(this.currentVariableDecorations.usages, []);
+                editor.setDecorations(this.currentVariableDecorations.definitions, []);
+                this.currentVariableDecorations = null;
+            }
+        }, 8000);
     }
     
     /**
-     * Show documentation suggestions in a WebView panel
-     * @param {Array<object>} undocumentedSections - Array of code sections needing documentation
+     * Show documentation suggestions for undocumented code
+     * @param {Array<object>} undocumentedSections - Undocumented code sections
      * @param {vscode.TextEditor} editor - The active text editor
      */
     showDocumentationSuggestions(undocumentedSections, editor) {
         if (undocumentedSections.length === 0) {
-            vscode.window.showInformationMessage('No undocumented code sections found 😺');
+            vscode.window.showInformationMessage('All code is documented. Good job!');
             return;
         }
         
-        // Create WebView panel for documentation suggestions
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.documentationSuggestions',
-            'CodeWhiskers: Documentation Suggestions',
-            vscode.ViewColumn.Beside,
-            { enableScripts: true }
+        // Create decoration for undocumented sections
+        const undocumentedDecoration = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(255, 213, 79, 0.2)',
+            isWholeLine: true,
+            before: {
+                contentText: '📝',
+                margin: '0 5px 0 0'
+            }
+        });
+        
+        // Apply decorations
+        editor.setDecorations(
+            undocumentedDecoration,
+            undocumentedSections.map(section => section.range)
         );
         
-        // Generate HTML for documentation suggestions
-        panel.webview.html = this._generateDocumentationSuggestionsHTML(undocumentedSections);
-        
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'addDocumentation':
-                        const sectionIndex = parseInt(message.sectionIndex);
-                        if (!isNaN(sectionIndex) && sectionIndex >= 0 && sectionIndex < undocumentedSections.length) {
-                            const section = undocumentedSections[sectionIndex];
-                            const docTemplate = this._generateDocTemplate(section);
-                            
-                            // Add documentation to the section
-                            const position = new vscode.Position(section.start.line, 0);
-                            editor.edit(editBuilder => {
-                                editBuilder.insert(position, docTemplate);
-                            }).then(success => {
-                                if (success) {
-                                    panel.webview.postMessage({ 
-                                        command: 'documentationAdded', 
-                                        sectionIndex: sectionIndex 
-                                    });
-                                    vscode.window.showInformationMessage('Documentation added! 😺');
-                                }
-                            });
-                        }
-                        return;
-                        
-                    case 'jumpToSection':
-                        const index = parseInt(message.sectionIndex);
-                        if (!isNaN(index) && index >= 0 && index < undocumentedSections.length) {
-                            const section = undocumentedSections[index];
-                            
-                            // Jump to the section
-                            const position = new vscode.Position(section.start.line, section.start.character);
-                            editor.selection = new vscode.Selection(position, position);
-                            editor.revealRange(
-                                new vscode.Range(position, position),
-                                vscode.TextEditorRevealType.InCenter
-                            );
-                        }
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
+        // Show notification with count
+        vscode.window.showInformationMessage(
+            `Found ${undocumentedSections.length} undocumented code sections`,
+            'Add Documentation'
+        ).then(selection => {
+            if (selection === 'Add Documentation') {
+                this._addDocumentation(undocumentedSections, editor);
+            }
+        });
     }
     
     /**
-     * Generate HTML for documentation suggestions panel
-     * @private
-     */
-    _generateDocumentationSuggestionsHTML(undocumentedSections) {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Documentation Suggestions</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .header-icon {
-                        font-size: 24px;
-                        margin-right: 10px;
-                    }
-                    h2 {
-                        margin: 0;
-                    }
-                    .summary {
-                        margin-bottom: 20px;
-                    }
-                    .section-card {
-                        background-color: var(--vscode-editor-inactiveSelectionBackground, #f5f5f5);
-                        color: var(--vscode-editor-foreground, #333333);
-                        border-radius: 5px;
-                        padding: 15px;
-                        margin-bottom: 15px;
-                        border-left: 3px solid #ffb74d;
-                    }
-                    .section-card.documented {
-                        border-left-color: #81c784;
-                        opacity: 0.7;
-                    }
-                    .section-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 10px;
-                    }
-                    .section-title {
-                        font-weight: bold;
-                        cursor: pointer;
-                    }
-                    .section-title:hover {
-                        text-decoration: underline;
-                    }
-                    .section-location {
-                        font-family: monospace;
-                        font-size: 12px;
-                        color: var(--vscode-descriptionForeground);
-                    }
-                    .code-preview {
-                        font-family: monospace;
-                        white-space: pre-wrap;
-                        padding: 10px;
-                        background-color: var(--vscode-editor-background);
-                        border-radius: 3px;
-                        margin-top: 10px;
-                        margin-bottom: 10px;
-                        max-height: 150px;
-                        overflow-y: auto;
-                    }
-                    .action-buttons {
-                        display: flex;
-                        gap: 8px;
-                    }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 6px 10px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 12px;
-                    }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                    .action-button:disabled {
-                        opacity: 0.5;
-                        cursor: not-allowed;
-                    }
-                    .success-badge {
-                        background-color: #81c784;
-                        color: #1b5e20;
-                        padding: 3px 8px;
-                        border-radius: 10px;
-                        font-size: 11px;
-                        margin-left: 8px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="header-icon">📝</div>
-                        <h2>Documentation Suggestions</h2>
-                    </div>
-                    
-                    <div class="summary">
-                        Found ${undocumentedSections.length} code sections that could use documentation.
-                    </div>
-                    
-                    <div class="sections-container">
-                        ${undocumentedSections.map((section, index) => `
-                            <div class="section-card" id="section-${index}">
-                                <div class="section-header">
-                                    <div class="section-title" data-index="${index}">${section.type}: ${section.name || 'Unnamed'}</div>
-                                    <div class="section-location">Line ${section.start.line + 1}</div>
-                                </div>
-                                <div class="code-preview">${section.code}</div>
-                                <div class="action-buttons">
-                                    <button class="action-button add-doc-button" data-index="${index}">Add Documentation</button>
-                                    <button class="action-button jump-button" data-index="${index}">Jump to Code</button>
-                                    <span class="success-message" style="display: none;">Documentation added! 😺</span>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Add event listeners to buttons
-                    document.querySelectorAll('.add-doc-button').forEach(button => {
-                        button.addEventListener('click', () => {
-                            const sectionIndex = button.getAttribute('data-index');
-                            vscode.postMessage({
-                                command: 'addDocumentation',
-                                sectionIndex: sectionIndex
-                            });
-                        });
-                    });
-                    
-                    document.querySelectorAll('.jump-button').forEach(button => {
-                        button.addEventListener('click', () => {
-                            const sectionIndex = button.getAttribute('data-index');
-                            vscode.postMessage({
-                                command: 'jumpToSection',
-                                sectionIndex: sectionIndex
-                            });
-                        });
-                    });
-                    
-                    document.querySelectorAll('.section-title').forEach(title => {
-                        title.addEventListener('click', () => {
-                            const sectionIndex = title.getAttribute('data-index');
-                            vscode.postMessage({
-                                command: 'jumpToSection',
-                                sectionIndex: sectionIndex
-                            });
-                        });
-                    });
-                    
-                    // Handle messages from extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        
-                        switch (message.command) {
-                            case 'documentationAdded':
-                                const sectionCard = document.getElementById('section-' + message.sectionIndex);
-                                if (sectionCard) {
-                                    sectionCard.classList.add('documented');
-                                    const addButton = sectionCard.querySelector('.add-doc-button');
-                                    if (addButton) {
-                                        addButton.disabled = true;
-                                    }
-                                    const successMessage = sectionCard.querySelector('.success-message');
-                                    if (successMessage) {
-                                        successMessage.style.display = 'inline';
-                                    }
-                                }
-                                break;
-                        }
-                    });
-                </script>
-            </body>
-            </html>
-        `;
-    }
-    
-    /**
-     * Show function behavior analysis in a WebView panel
+     * Show function behavior analysis
      * @param {Array<object>} analyzedFunctions - Functions with analysis data
      * @param {vscode.TextEditor} editor - The active text editor
      */
@@ -946,9 +214,6 @@ class UILayer {
             vscode.window.showInformationMessage('No functions found in this file');
             return;
         }
-        
-        // Apply decorations for functions based on complexity
-        this._applyFunctionDecorations(analyzedFunctions, editor);
         
         // Create webview panel for function analysis
         const panel = vscode.window.createWebviewPanel(
@@ -961,317 +226,7 @@ class UILayer {
         // Generate HTML for function analysis
         panel.webview.html = this._generateFunctionAnalysisHTML(analyzedFunctions);
         
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'generateDocumentation':
-                        const functionData = analyzedFunctions.find(fn => fn.name === message.functionName);
-                        if (functionData) {
-                            this._generateFunctionDocumentation(functionData, editor);
-                        }
-                        return;
-                        
-                    case 'jumpToFunction':
-                        const fnData = analyzedFunctions.find(fn => fn.name === message.functionName);
-                        if (fnData && fnData.position) {
-                            const position = new vscode.Position(fnData.position.line, fnData.position.character);
-                            editor.selection = new vscode.Selection(position, position);
-                            editor.revealRange(
-                                new vscode.Range(position, position),
-                                vscode.TextEditorRevealType.InCenter
-                            );
-                        }
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
-    }
-    
-    /**
-     * Generate HTML for function analysis panel
-     * @private
-     */
-    _generateFunctionAnalysisHTML(analyzedFunctions) {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>CodeWhiskers Function Analysis</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .header img {
-                        width: 40px;
-                        height: 40px;
-                        margin-right: 10px;
-                    }
-                    .function-card {
-                        background-color: var(--vscode-editor-inactiveSelectionBackground, #f5f5f5);
-                        color: var(--vscode-editor-foreground, #333333);
-                        border-radius: 5px;
-                        padding: 15px;
-                        margin-bottom: 15px;
-                        border-left: 5px solid #78909c;
-                    }
-                    .function-card.low-complexity {
-                        border-left-color: #a5d6a7;
-                    }
-                    .function-card.medium-complexity {
-                        border-left-color: #fff59d;
-                    }
-                    .function-card.high-complexity {
-                        border-left-color: #ef9a9a;
-                    }
-                    .function-name {
-                        font-weight: bold;
-                        font-size: 16px;
-                        margin-bottom: 10px;
-                        display: flex;
-                        align-items: center;
-                        cursor: pointer;
-                    }
-                    .function-name::before {
-                        content: "🐱";
-                        margin-right: 5px;
-                    }
-                    .complexity-badge {
-                        display: inline-block;
-                        padding: 2px 8px;
-                        border-radius: 10px;
-                        font-size: 12px;
-                        margin-left: 10px;
-                    }
-                    .complexity-low {
-                        background-color: #a5d6a7;
-                        color: #1b5e20;
-                    }
-                    .complexity-medium {
-                        background-color: #fff59d;
-                        color: #f57f17;
-                    }
-                    .complexity-high {
-                        background-color: #ef9a9a;
-                        color: #b71c1c;
-                    }
-                    .function-params {
-                        font-family: monospace;
-                        margin-bottom: 10px;
-                        color: var(--vscode-editor-foreground, #333333);
-                    }
-                    .function-explanation {
-                        line-height: 1.5;
-                        color: var(--vscode-editor-foreground, #333333);
-                    }
-                    .patterns-list {
-                        margin-top: 10px;
-                        display: flex;
-                        flex-wrap: wrap;
-                    }
-                    .pattern-tag {
-                        background-color: var(--vscode-badge-background, #e0e0e0);
-                        color: var(--vscode-badge-foreground, #333333);
-                        padding: 3px 8px;
-                        border-radius: 10px;
-                        margin-right: 5px;
-                        margin-bottom: 5px;
-                        font-size: 12px;
-                    }
-                    .action-buttons {
-                        margin-top: 10px;
-                        display: flex;
-                        gap: 8px;
-                    }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 6px 10px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 12px;
-                    }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <img src="https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/symbol-function.svg" alt="Function">
-                        <h2>Function Analysis - ${analyzedFunctions.length} functions found</h2>
-                    </div>
-                    
-                    <div class="functions-container">
-                        ${analyzedFunctions.map(fn => `
-                            <div class="function-card ${fn.analysis.complexity.level}-complexity">
-                                <div class="function-name" data-function="${fn.name}">
-                                    ${fn.name}
-                                    <span class="complexity-badge complexity-${fn.analysis.complexity.level}">
-                                        ${fn.analysis.complexity.level.toUpperCase()}
-                                    </span>
-                                </div>
-                                <div class="function-params">
-                                    Parameters: ${fn.params.length > 0 
-                                        ? fn.params.map(p => p.name).join(', ') 
-                                        : 'none'}
-                                </div>
-                                <div class="function-explanation">
-                                    ${fn.explanation}
-                                </div>
-                                ${fn.analysis.patterns.length > 0 ? `
-                                    <div class="patterns-list">
-                                        ${fn.analysis.patterns.map(p => `
-                                            <span class="pattern-tag">${p.name}</span>
-                                        `).join('')}
-                                    </div>
-                                ` : ''}
-                                <div class="action-buttons">
-                                    <button class="action-button doc-button" data-function="${fn.name}">Generate Documentation</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Jump to function when name is clicked
-                    document.querySelectorAll('.function-name').forEach(element => {
-                        element.addEventListener('click', () => {
-                            const functionName = element.getAttribute('data-function');
-                            vscode.postMessage({
-                                command: 'jumpToFunction',
-                                functionName: functionName
-                            });
-                        });
-                    });
-                    
-                    // Add event listeners to documentation buttons
-                    document.querySelectorAll('.doc-button').forEach(button => {
-                        button.addEventListener('click', () => {
-                            const functionName = button.getAttribute('data-function');
-                            vscode.postMessage({
-                                command: 'generateDocumentation',
-                                functionName: functionName
-                            });
-                        });
-                    });
-                </script>
-            </body>
-            </html>
-        `;
-    }
-    
-    /**
-     * Show detailed function analysis in a message panel
-     * @private
-     */
-    _showFunctionDetailsPanel(functionData, editor) {
-        // Create a summary of function details
-        const complexityEmoji = functionData.analysis.complexity.level === 'low' ? '😺' :
-                               functionData.analysis.complexity.level === 'medium' ? '🐱' : '😾';
-        
-        // Prepare actions for the detail panel
-        const detailActions = [
-            { title: '📋 Copy Explanation', id: 'copy' },
-            { title: '📝 Generate Documentation', id: 'document' }
-        ];
-        
-        // If the function has patterns or side effects, add more detail options
-        if (functionData.analysis.patterns.length > 0) {
-            detailActions.push({ title: '💡 View Patterns', id: 'patterns' });
-        }
-        
-        if (functionData.analysis.sideEffects.length > 0) {
-            detailActions.push({ title: '⚠️ View Side Effects', id: 'effects' });
-        }
-        
-        // Show function details
-        vscode.window.showInformationMessage(
-            `${complexityEmoji} ${functionData.name}: ${functionData.explanation}`,
-            { modal: false },
-            ...detailActions
-        ).then(selection => {
-            if (!selection) return;
-            
-            switch (selection.id) {
-                case 'copy':
-                    vscode.env.clipboard.writeText(functionData.explanation);
-                    vscode.window.showInformationMessage('Function explanation copied to clipboard! 😺');
-                    break;
-                    
-                case 'document':
-                    this._generateFunctionDocumentation(functionData, editor);
-                    break;
-                    
-                case 'patterns':
-                    if (functionData.analysis.patterns.length > 0) {
-                        const patternText = functionData.analysis.patterns
-                            .map(p => `${p.name}: ${p.type}`)
-                            .join('\n');
-                        
-                        vscode.window.showInformationMessage(
-                            `Patterns in ${functionData.name}:\n${patternText}`,
-                            { modal: false },
-                            { title: '📋 Copy', id: 'copy-patterns' }
-                        ).then(action => {
-                            if (action && action.id === 'copy-patterns') {
-                                vscode.env.clipboard.writeText(patternText);
-                                vscode.window.showInformationMessage('Patterns copied to clipboard! 😺');
-                            }
-                        });
-                    }
-                    break;
-                    
-                case 'effects':
-                    if (functionData.analysis.sideEffects.length > 0) {
-                        const effectsText = functionData.analysis.sideEffects
-                            .map(e => `${e.type}: ${e.description}`)
-                            .join('\n');
-                        
-                        vscode.window.showInformationMessage(
-                            `Side Effects in ${functionData.name}:\n${effectsText}`,
-                            { modal: false },
-                            { title: '📋 Copy', id: 'copy-effects' }
-                        ).then(action => {
-                            if (action && action.id === 'copy-effects') {
-                                vscode.env.clipboard.writeText(effectsText);
-                                vscode.window.showInformationMessage('Side effects copied to clipboard! 😺');
-                            }
-                        });
-                    }
-                    break;
-            }
-        });
-    }
-    
-    /**
-     * Apply decorations for functions based on complexity
-     * @private
-     */
-    _applyFunctionDecorations(analyzedFunctions, editor) {
+        // Create decorations for functions based on complexity
         const lowComplexityFunctions = analyzedFunctions
             .filter(fn => fn.analysis.complexity.level === 'low')
             .map(fn => fn.range);
@@ -1288,260 +243,6 @@ class UILayer {
         editor.setDecorations(this.decorationTypes.lowComplexity, lowComplexityFunctions);
         editor.setDecorations(this.decorationTypes.mediumComplexity, mediumComplexityFunctions);
         editor.setDecorations(this.decorationTypes.highComplexity, highComplexityFunctions);
-    }
-    
-    /**
-     * Generate function documentation
-     * @private
-     */
-    _generateFunctionDocumentation(functionData, editor) {
-        const { name, params, analysis } = functionData;
-        
-        let docTemplate = '/**\n';
-        docTemplate += ` * ${name}\n`;
-        docTemplate += ` *\n`;
-        
-        // Add parameter documentation
-        params.forEach(param => {
-            docTemplate += ` * @param {any} ${param.name} - Description\n`;
-        });
-        
-        // Add return documentation
-        if (analysis.returnValue.exists) {
-            docTemplate += ` * @returns {any} - ${analysis.returnValue.value}\n`;
-        } else {
-            docTemplate += ` * @returns {void}\n`;
-        }
-        
-        docTemplate += ` */\n`;
-        
-        // Create WebView panel for documentation preview
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.documentationPreview',
-            `Documentation: ${name}`,
-            vscode.ViewColumn.Beside,
-            { enableScripts: true }
-        );
-        
-        // Generate HTML for the documentation preview
-        panel.webview.html = this._generateDocumentationPreviewHTML(name, docTemplate, functionData);
-        
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'insertDocumentation':
-                        const position = new vscode.Position(functionData.position.line, 0);
-                        editor.edit(editBuilder => {
-                            editBuilder.insert(position, docTemplate);
-                        }).then(success => {
-                            if (success) {
-                                panel.webview.postMessage({ command: 'documentationInserted' });
-                                vscode.window.showInformationMessage('Documentation added! 😺');
-                            }
-                        });
-                        return;
-                        
-                    case 'copyDocumentation':
-                        vscode.env.clipboard.writeText(docTemplate);
-                        vscode.window.showInformationMessage('Documentation copied to clipboard 📋');
-                        return;
-                        
-                    case 'jumpToFunction':
-                        if (functionData.position) {
-                            const position = new vscode.Position(functionData.position.line, functionData.position.character || 0);
-                            editor.selection = new vscode.Selection(position, position);
-                            editor.revealRange(
-                                new vscode.Range(position, position),
-                                vscode.TextEditorRevealType.InCenter
-                            );
-                        }
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
-    }
-    
-    /**
-     * Generate HTML for documentation preview panel
-     * @private
-     */
-    _generateDocumentationPreviewHTML(functionName, docTemplate, functionData) {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Documentation Preview</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .header-icon {
-                        font-size: 24px;
-                        margin-right: 10px;
-                    }
-                    h2 {
-                        margin: 0;
-                    }
-                    .function-info {
-                        margin-bottom: 20px;
-                    }
-                    .function-name {
-                        font-weight: bold;
-                        color: var(--vscode-symbolIcon-functionForeground, #B180D7);
-                        cursor: pointer;
-                    }
-                    .function-name:hover {
-                        text-decoration: underline;
-                    }
-                    .doc-preview {
-                        font-family: monospace;
-                        white-space: pre-wrap;
-                        padding: 15px;
-                        background-color: var(--vscode-editor-background);
-                        border: 1px solid var(--vscode-panel-border);
-                        border-radius: 5px;
-                        margin-bottom: 20px;
-                    }
-                    .action-buttons {
-                        display: flex;
-                        gap: 10px;
-                        margin-top: 20px;
-                    }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 13px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                    .action-button:disabled {
-                        opacity: 0.5;
-                        cursor: not-allowed;
-                    }
-                    .button-icon {
-                        margin-right: 6px;
-                        font-size: 16px;
-                    }
-                    .success-message {
-                        color: #4caf50;
-                        margin-top: 10px;
-                        font-weight: bold;
-                        display: none;
-                    }
-                    .hint {
-                        margin-top: 20px;
-                        padding: 10px;
-                        background-color: rgba(100, 181, 246, 0.1);
-                        border-left: 3px solid #64b5f6;
-                        border-radius: 2px;
-                    }
-                    .hint h3 {
-                        margin-top: 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="header-icon">📝</div>
-                        <h2>Documentation Preview</h2>
-                    </div>
-                    
-                    <div class="function-info">
-                        Function: <span class="function-name">${functionName}</span>
-                    </div>
-                    
-                    <h3>Documentation Template</h3>
-                    <div class="doc-preview">${docTemplate.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                    
-                    <div class="hint">
-                        <h3>JSDoc Tips</h3>
-                        <ul>
-                            <li>Add detailed descriptions for each parameter</li>
-                            <li>Specify accurate types (e.g., {string}, {number}, {boolean})</li>
-                            <li>Describe what the function returns</li>
-                            <li>Consider adding @example with a usage sample</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="action-buttons">
-                        <button class="action-button" id="insertBtn">
-                            <span class="button-icon">📄</span> Insert Documentation
-                        </button>
-                        <button class="action-button" id="copyBtn">
-                            <span class="button-icon">📋</span> Copy to Clipboard
-                        </button>
-                    </div>
-                    
-                    <div class="success-message" id="successMessage">
-                        Documentation added successfully! 😺
-                    </div>
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Add event listeners to buttons
-                    document.getElementById('insertBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'insertDocumentation'
-                        });
-                    });
-                    
-                    document.getElementById('copyBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'copyDocumentation'
-                        });
-                    });
-                    
-                    document.querySelector('.function-name').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'jumpToFunction'
-                        });
-                    });
-                    
-                    // Handle messages from extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        
-                        if (message.command === 'documentationInserted') {
-                            // Show success message
-                            document.getElementById('successMessage').style.display = 'block';
-                            
-                            // Disable insert button
-                            document.getElementById('insertBtn').disabled = true;
-                        }
-                    });
-                </script>
-            </body>
-            </html>
-        `;
     }
     
     /**
@@ -1711,87 +412,137 @@ class UILayer {
     }
     
     /**
-     * Suggest documentation template based on code
+     * Generate HTML for explanation panel
      * @private
      */
-    _suggestInlineDocumentation(editor) {
-        const document = editor.document;
-        const selection = editor.selection;
-        const text = document.getText(selection);
+    _generateExplanationHTML(explanation, complexity, uiTheme, animationFreq) {
+        // Get cat image based on theme and complexity
+        const catImage = this._getCatImage(uiTheme, complexity);
         
-        // Simple heuristic to generate documentation
-        let docTemplate = '/**\n';
+        // Get animation CSS based on frequency
+        const animationCSS = this._getAnimationCSS(animationFreq);
         
-        // Check if it's a function
-        const functionMatch = text.match(/function\s+(\w+)\s*\(([^)]*)\)/);
-        if (functionMatch) {
-            const name = functionMatch[1];
-            const params = functionMatch[2].split(',').map(p => p.trim()).filter(p => p);
-            
-            docTemplate += ` * ${name} function\n`;
-            docTemplate += ` *\n`;
-            
-            params.forEach(param => {
-                docTemplate += ` * @param {any} ${param} - Description\n`;
-            });
-            
-            docTemplate += ` * @returns {any} - Return value description\n`;
-        } else {
-            docTemplate += ` * Description of this code block\n`;
-        }
-        
-        docTemplate += ` */\n`;
-        
-        // Create WebView panel for documentation preview
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.inlineDocumentation',
-            'CodeWhiskers: Suggested Documentation',
-            vscode.ViewColumn.Beside,
-            { enableScripts: true }
-        );
-        
-        // Generate HTML for the documentation preview
-        panel.webview.html = this._generateInlineDocumentationHTML(docTemplate, text);
-        
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'insertDocumentation':
-                        const position = new vscode.Position(selection.start.line, 0);
-                        editor.edit(editBuilder => {
-                            editBuilder.insert(position, docTemplate);
-                        }).then(success => {
-                            if (success) {
-                                panel.webview.postMessage({ command: 'documentationInserted' });
-                                vscode.window.showInformationMessage('Documentation added! 😺');
-                            }
-                        });
-                        return;
-                        
-                    case 'copyDocumentation':
-                        vscode.env.clipboard.writeText(docTemplate);
-                        vscode.window.showInformationMessage('Documentation copied to clipboard 📋');
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
-    }
-    
-    /**
-     * Generate HTML for inline documentation panel
-     * @private
-     */
-    _generateInlineDocumentationHTML(docTemplate, selectedCode) {
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Suggested Documentation</title>
+                <title>CodeWhiskers Explanation</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                        padding: 0;
+                        margin: 0;
+                        color: var(--vscode-editor-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    .container {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .header {
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 20px;
+                    }
+                    .cat-image {
+                        width: 80px;
+                        height: 80px;
+                        margin-right: 20px;
+                    }
+                    .complexity-badge {
+                        display: inline-block;
+                        padding: 5px 10px;
+                        border-radius: 15px;
+                        font-size: 12px;
+                        font-weight: bold;
+                        margin-left: 10px;
+                    }
+                    .complexity-low {
+                        background-color: #a5d6a7;
+                        color: #1b5e20;
+                    }
+                    .complexity-medium {
+                        background-color: #fff59d;
+                        color: #f57f17;
+                    }
+                    .complexity-high {
+                        background-color: #ef9a9a;
+                        color: #b71c1c;
+                    }
+                    .whiskers {
+                        position: relative;
+                        height: 2px;
+                        background-color: #b0bec5;
+                        margin: 10px 0;
+                        width: 0;
+                        transition: width 1s ease-in-out;
+                    }
+                    .whiskers.visible {
+                        width: 100%;
+                    }
+                    .explanation {
+                        background-color: var(--vscode-editor-inactiveSelectionBackground, #f5f5f5);
+                        color: var(--vscode-editor-foreground, #333333);
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                        line-height: 1.5;
+                    }
+                    ${animationCSS}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="${catImage}" alt="CodeWhiskers Cat" class="cat-image">
+                        <div>
+                            <h2>CodeWhiskers Explanation</h2>
+                            <span>Complexity: 
+                                <span class="complexity-badge complexity-${complexity}">
+                                    ${complexity.toUpperCase()}
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="whiskers whisker-left"></div>
+                    <div class="whiskers whisker-right"></div>
+                    
+                    <div class="explanation">
+                        ${explanation.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+                
+                <script>
+                    // Animate whiskers on load
+                    document.addEventListener('DOMContentLoaded', () => {
+                        setTimeout(() => {
+                            document.querySelectorAll('.whiskers').forEach(whisker => {
+                                whisker.classList.add('visible');
+                            });
+                        }, 300);
+                    });
+                </script>
+            </body>
+            </html>
+        `;
+    }
+    
+    /**
+     * Generate HTML for function analysis panel
+     * @private
+     */
+    _generateFunctionAnalysisHTML(analyzedFunctions) {
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>CodeWhiskers Function Analysis</title>
                 <style>
                     body {
                         font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
@@ -1810,797 +561,220 @@ class UILayer {
                         display: flex;
                         align-items: center;
                     }
-                    .header-icon {
-                        font-size: 24px;
+                    .header img {
+                        width: 40px;
+                        height: 40px;
                         margin-right: 10px;
                     }
-                    h2 {
-                        margin: 0;
-                    }
-                    .code-section {
-                        margin-bottom: 20px;
-                    }
-                    h3 {
-                        margin-top: 20px;
-                        margin-bottom: 10px;
-                    }
-                    .code-preview, .doc-preview {
-                        font-family: monospace;
-                        white-space: pre-wrap;
-                        padding: 15px;
-                        background-color: var(--vscode-editor-background);
-                        border: 1px solid var(--vscode-panel-border);
+                    .function-card {
+                        background-color: var(--vscode-editor-inactiveSelectionBackground, #f5f5f5);
+                        color: var(--vscode-editor-foreground, #333333);
                         border-radius: 5px;
-                        margin-bottom: 20px;
-                        font-size: 14px;
-                        line-height: 1.5;
+                        padding: 15px;
+                        margin-bottom: 15px;
+                        border-left: 5px solid #78909c;
                     }
-                    .action-buttons {
-                        display: flex;
-                        gap: 10px;
-                        margin-top: 20px;
+                    .function-card.low-complexity {
+                        border-left-color: #a5d6a7;
                     }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 13px;
+                    .function-card.medium-complexity {
+                        border-left-color: #fff59d;
+                    }
+                    .function-card.high-complexity {
+                        border-left-color: #ef9a9a;
+                    }
+                    .function-name {
+                        font-weight: bold;
+                        font-size: 16px;
+                        margin-bottom: 10px;
                         display: flex;
                         align-items: center;
                     }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
+                    .function-name::before {
+                        content: "🐱";
+                        margin-right: 5px;
                     }
-                    .action-button:disabled {
-                        opacity: 0.5;
-                        cursor: not-allowed;
+                    .complexity-badge {
+                        display: inline-block;
+                        padding: 2px 8px;
+                        border-radius: 10px;
+                        font-size: 12px;
+                        margin-left: 10px;
                     }
-                    .button-icon {
-                        margin-right: 6px;
-                        font-size: 16px;
+                    .complexity-low {
+                        background-color: #a5d6a7;
+                        color: #1b5e20;
                     }
-                    .success-message {
-                        color: #4caf50;
+                    .complexity-medium {
+                        background-color: #fff59d;
+                        color: #f57f17;
+                    }
+                    .complexity-high {
+                        background-color: #ef9a9a;
+                        color: #b71c1c;
+                    }
+                    .function-params {
+                        font-family: monospace;
+                        margin-bottom: 10px;
+                        color: var(--vscode-editor-foreground, #333333);
+                    }
+                    .function-explanation {
+                        line-height: 1.5;
+                        color: var(--vscode-editor-foreground, #333333);
+                    }
+                    .patterns-list {
                         margin-top: 10px;
-                        font-weight: bold;
-                        display: none;
+                        display: flex;
+                        flex-wrap: wrap;
                     }
-                    .cat-image {
-                        width: 40px;
-                        height: 40px;
-                        margin-right: 15px;
-                        opacity: 0.8;
+                    .pattern-tag {
+                        background-color: var(--vscode-badge-background, #e0e0e0);
+                        color: var(--vscode-badge-foreground, #333333);
+                        padding: 3px 8px;
+                        border-radius: 10px;
+                        margin-right: 5px;
+                        margin-bottom: 5px;
+                        font-size: 12px;
                     }
                 </style>
             </head>
             <body>
                 <div class="container">
                     <div class="header">
-                        <div class="header-icon">📝</div>
-                        <h2>Suggested Documentation</h2>
+                        <img src="https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/symbol-function.svg" alt="Function">
+                        <h2>Function Analysis - ${analyzedFunctions.length} functions found</h2>
                     </div>
                     
-                    <div class="code-section">
-                        <h3>Selected Code</h3>
-                        <div class="code-preview">${selectedCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                        
-                        <h3>Documentation Template</h3>
-                        <div class="doc-preview">${docTemplate.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                    </div>
-                    
-                    <div class="action-buttons">
-                        <button class="action-button" id="insertBtn">
-                            <span class="button-icon">📄</span> Add Documentation
-                        </button>
-                        <button class="action-button" id="copyBtn">
-                            <span class="button-icon">📋</span> Copy to Clipboard
-                        </button>
-                    </div>
-                    
-                    <div class="success-message" id="successMessage">
-                        Documentation added successfully! 😺
+                    <div class="functions-container">
+                        ${analyzedFunctions.map(fn => `
+                            <div class="function-card ${fn.analysis.complexity.level}-complexity">
+                                <div class="function-name">
+                                    ${fn.name}
+                                    <span class="complexity-badge complexity-${fn.analysis.complexity.level}">
+                                        ${fn.analysis.complexity.level.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div class="function-params">
+                                    Parameters: ${fn.params.length > 0 
+                                        ? fn.params.map(p => p.name).join(', ') 
+                                        : 'none'}
+                                </div>
+                                <div class="function-explanation">
+                                    ${fn.explanation}
+                                </div>
+                                ${fn.analysis.patterns.length > 0 ? `
+                                    <div class="patterns-list">
+                                        ${fn.analysis.patterns.map(p => `
+                                            <span class="pattern-tag">${p.name}</span>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Add event listeners to buttons
-                    document.getElementById('insertBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'insertDocumentation'
-                        });
-                    });
-                    
-                    document.getElementById('copyBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'copyDocumentation'
-                        });
-                    });
-                    
-                    // Handle messages from extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        
-                        if (message.command === 'documentationInserted') {
-                            // Show success message
-                            document.getElementById('successMessage').style.display = 'block';
-                            
-                            // Disable insert button
-                            document.getElementById('insertBtn').disabled = true;
-                        }
-                    });
-                </script>
             </body>
             </html>
         `;
     }
     
     /**
-     * Generate documentation template based on code section
-     * @private
-     */
-    _generateDocTemplate(section) {
-        let docTemplate = '/**\n';
-        
-        // Generate appropriate documentation based on section type
-        if (section.type === 'function' || section.type === 'method') {
-            const name = section.name || 'function';
-            docTemplate += ` * ${name}\n`;
-            docTemplate += ` *\n`;
-            
-            // Add parameter documentation if available
-            if (section.params && section.params.length > 0) {
-                section.params.forEach(param => {
-                    docTemplate += ` * @param {any} ${param} - Description\n`;
-                });
-            }
-            
-            // Add return documentation
-            docTemplate += ` * @returns {any} - Description\n`;
-        } else if (section.type === 'class') {
-            docTemplate += ` * ${section.name || 'Class'} class\n`;
-            docTemplate += ` * @class\n`;
-            docTemplate += ` * @description Class description\n`;
-        } else if (section.type === 'variable' || section.type === 'constant') {
-            docTemplate += ` * ${section.name || 'Variable'} description\n`;
-            docTemplate += ` * @type {any}\n`;
-        } else {
-            // Default documentation
-            docTemplate += ` * Description\n`;
-        }
-        
-        docTemplate += ` */\n`;
-        return docTemplate;
-    }
-
-    /**
-     * Add documentation to selected code sections using WebView
+     * Add documentation to undocumented sections
      * @private
      */
     _addDocumentation(undocumentedSections, editor) {
-        if (undocumentedSections.length === 0) return;
-        
-        const section = undocumentedSections[0];
-        const docTemplate = this._generateDocTemplate(section);
-        
-        // Create WebView panel for documentation preview
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.sectionDocumentation',
-            `Documentation: ${section.type}`,
-            vscode.ViewColumn.Beside,
-            { enableScripts: true }
-        );
-        
-        // Generate HTML for the documentation preview
-        panel.webview.html = this._generateSectionDocumentationHTML(section, docTemplate, undocumentedSections.length > 1);
-        
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'insertDocumentation':
-                        const position = new vscode.Position(section.start.line, 0);
-                        editor.edit(editBuilder => {
-                            editBuilder.insert(position, docTemplate);
-                        }).then(success => {
-                            if (success) {
-                                panel.webview.postMessage({ command: 'documentationInserted' });
-                                vscode.window.showInformationMessage('Documentation added! 😺');
-                                
-                                // If there are more sections, update the UI
-                                if (undocumentedSections.length > 1) {
-                                    panel.webview.postMessage({ 
-                                        command: 'moreDocumentations',
-                                        count: undocumentedSections.length - 1
-                                    });
-                                }
-                            }
-                        });
-                        return;
-                        
-                    case 'copyDocumentation':
-                        vscode.env.clipboard.writeText(docTemplate);
-                        vscode.window.showInformationMessage('Documentation copied to clipboard 📋');
-                        return;
-                        
-                    case 'continueDocumentation':
-                        // Process next section
-                        if (undocumentedSections.length > 1) {
-                            this._addDocumentation(undocumentedSections.slice(1), editor);
-                            panel.dispose(); // Close the current panel
-                        }
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
-    }
-
-    /**
-     * Generate HTML for section documentation panel
-     * @private
-     */
-    _generateSectionDocumentationHTML(section, docTemplate, hasMore) {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Documentation Preview</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .header-icon {
-                        font-size: 24px;
-                        margin-right: 10px;
-                    }
-                    h2 {
-                        margin: 0;
-                    }
-                    .section-info {
-                        margin-bottom: 20px;
-                    }
-                    .section-type {
-                        font-weight: bold;
-                        color: var(--vscode-symbolIcon-functionForeground, #B180D7);
-                    }
-                    .code-preview, .doc-preview {
-                        font-family: monospace;
-                        white-space: pre-wrap;
-                        padding: 15px;
-                        background-color: var(--vscode-editor-background);
-                        border: 1px solid var(--vscode-panel-border);
-                        border-radius: 5px;
-                        margin-bottom: 20px;
-                        font-size: 14px;
-                        line-height: 1.5;
-                    }
-                    .action-buttons {
-                        display: flex;
-                        gap: 10px;
-                        margin-top: 20px;
-                    }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 13px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                    .action-button:disabled {
-                        opacity: 0.5;
-                        cursor: not-allowed;
-                    }
-                    .success-message {
-                        color: #4caf50;
-                        margin-top: 10px;
-                        font-weight: bold;
-                        display: none;
-                    }
-                    .continue-section {
-                        margin-top: 20px;
-                        padding: 15px;
-                        background-color: rgba(100, 181, 246, 0.1);
-                        border-radius: 5px;
-                        display: ${hasMore ? 'block' : 'none'};
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="header-icon">📝</div>
-                        <h2>Documentation for ${section.type}</h2>
-                    </div>
-                    
-                    <div class="section-info">
-                        <p>Type: <span class="section-type">${section.type}</span> at Line ${section.start.line + 1}</p>
-                    </div>
-                    
-                    <h3>Code</h3>
-                    <div class="code-preview">${section.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                    
-                    <h3>Suggested Documentation</h3>
-                    <div class="doc-preview">${docTemplate.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                    
-                    <div class="action-buttons">
-                        <button class="action-button" id="insertBtn">
-                            <span class="button-icon">📄</span> Add Documentation
-                        </button>
-                        <button class="action-button" id="copyBtn">
-                            <span class="button-icon">📋</span> Copy to Clipboard
-                        </button>
-                    </div>
-                    
-                    <div class="success-message" id="successMessage">
-                        Documentation added successfully! 😺
-                    </div>
-                    
-                    <div class="continue-section" id="continueSection">
-                        <p>There are more undocumented sections in your code.</p>
-                        <button class="action-button" id="continueBtn">
-                            Continue to Next Section
-                        </button>
-                        <span id="remainingCount">${hasMore ? undocumentedSections.length - 1 : 0} more remaining</span>
-                    </div>
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Add event listeners to buttons
-                    document.getElementById('insertBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'insertDocumentation'
-                        });
-                    });
-                    
-                    document.getElementById('copyBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'copyDocumentation'
-                        });
-                    });
-                    
-                    // Add continue button if there are more sections
-                    const continueBtn = document.getElementById('continueBtn');
-                    if (continueBtn) {
-                        continueBtn.addEventListener('click', () => {
-                            vscode.postMessage({
-                                command: 'continueDocumentation'
-                            });
-                        });
-                    }
-                    
-                    // Handle messages from extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        
-                        if (message.command === 'documentationInserted') {
-                            // Show success message
-                            document.getElementById('successMessage').style.display = 'block';
-                            
-                            // Disable insert button
-                            document.getElementById('insertBtn').disabled = true;
-                        } else if (message.command === 'moreDocumentations') {
-                            // Update remaining count
-                            const remainingCount = document.getElementById('remainingCount');
-                            if (remainingCount) {
-                                remainingCount.textContent = message.count + ' more remaining';
-                            }
-                            
-                            // Show continue section
-                            const continueSection = document.getElementById('continueSection');
-                            if (continueSection) {
-                                continueSection.style.display = 'block';
-                            }
-                        }
-                    });
-                </script>
-            </body>
-            </html>
-        `;
-    }
-    
-    /**
-     * Show the settings UI in a WebView panel
-     */
-    showSettingsUI() {
-        // Create WebView panel for settings
-        const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.settings',
-            'CodeWhiskers Settings',
-            vscode.ViewColumn.Active,
-            { 
-                enableScripts: true,
-                retainContextWhenHidden: true
-            }
-        );
-        
-        // Generate HTML for the settings UI
-        panel.webview.html = this._generateSettingsHTML();
-        
-        // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'saveSettings':
-                        this._saveSettings(message.settings);
-                        panel.webview.postMessage({ command: 'settingsSaved' });
-                        return;
-                        
-                    case 'resetSettings':
-                        this._resetSettings();
-                        panel.webview.postMessage({ 
-                            command: 'settingsReset',
-                            settings: this.settings
-                        });
-                        return;
-                        
-                    case 'getSettings':
-                        panel.webview.postMessage({ 
-                            command: 'currentSettings',
-                            settings: this.settings
-                        });
-                        return;
-                }
-            },
-            undefined,
-            this.context.subscriptions
-        );
-    }
-    
-    /**
-     * Generate HTML for settings panel
-     * @private
-     */
-    _generateSettingsHTML() {
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>CodeWhiskers Settings</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
-                        background-color: var(--vscode-editor-background);
-                    }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    .header {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    .header-icon {
-                        font-size: 24px;
-                        margin-right: 10px;
-                    }
-                    h2 {
-                        margin: 0;
-                    }
-                    .settings-section {
-                        margin-bottom: 30px;
-                    }
-                    .settings-section h3 {
-                        margin-top: 0;
-                        margin-bottom: 10px;
-                        border-bottom: 1px solid var(--vscode-panel-border);
-                        padding-bottom: 5px;
-                    }
-                    .setting-item {
-                        margin-bottom: 15px;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    .setting-label {
-                        font-weight: bold;
-                        margin-bottom: 5px;
-                    }
-                    .setting-description {
-                        margin-bottom: 8px;
-                        font-size: 12px;
-                        opacity: 0.8;
-                    }
-                    select, input[type="checkbox"] {
-                        padding: 5px;
-                        background-color: var(--vscode-input-background);
-                        color: var(--vscode-input-foreground);
-                        border: 1px solid var(--vscode-input-border);
-                        border-radius: 2px;
-                    }
-                    select {
-                        width: 100%;
-                        max-width: 300px;
-                    }
-                    .checkbox-container {
-                        display: flex;
-                        align-items: center;
-                    }
-                    .checkbox-container input {
-                        margin-right: 8px;
-                    }
-                    .action-buttons {
-                        display: flex;
-                        gap: 10px;
-                        margin-top: 20px;
-                    }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 13px;
-                    }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
-                    }
-                    .reset-button {
-                        background-color: var(--vscode-errorForeground, #f44336);
-                    }
-                    .success-message {
-                        color: #4caf50;
-                        margin-top: 10px;
-                        font-weight: bold;
-                        display: none;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="header-icon">⚙️</div>
-                        <h2>CodeWhiskers Settings</h2>
-                    </div>
-                    
-                    <div class="settings-form">
-                        <div class="settings-section">
-                            <h3>Explanation Options</h3>
-                            
-                            <div class="setting-item">
-                                <label class="setting-label" for="explanationStyle">Explanation Style</label>
-                                <div class="setting-description">Choose the level of detail for code explanations</div>
-                                <select id="explanationStyle">
-                                    <option value="conversational">Conversational</option>
-                                    <option value="technical">Technical</option>
-                                    <option value="detailed">Detailed</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="settings-section">
-                            <h3>UI Options</h3>
-                            
-                            <div class="setting-item">
-                                <label class="setting-label" for="uiTheme">Theme</label>
-                                <div class="setting-description">Choose the kitten theme for UI elements</div>
-                                <select id="uiTheme">
-                                    <option value="tabby">Tabby</option>
-                                    <option value="siamese">Siamese</option>
-                                    <option value="calico">Calico</option>
-                                    <option value="black">Black</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <label class="setting-label" for="animationFrequency">Animation Frequency</label>
-                                <div class="setting-description">Set how often animations should appear</div>
-                                <select id="animationFrequency">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableEmojis">
-                                    <label class="setting-label" for="enableEmojis">Enable Emojis</label>
-                                </div>
-                                <div class="setting-description">Show emoji icons in the UI</div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableAnimations">
-                                    <label class="setting-label" for="enableAnimations">Enable Animations</label>
-                                </div>
-                                <div class="setting-description">Enable UI animations</div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="showCatImages">
-                                    <label class="setting-label" for="showCatImages">Show Cat Images</label>
-                                </div>
-                                <div class="setting-description">Display cat images in explanation panels</div>
-                            </div>
-                        </div>
-                        
-                        <div class="settings-section">
-                            <h3>Code Editor Options</h3>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableDecorations">
-                                    <label class="setting-label" for="enableDecorations">Enable Code Decorations</label>
-                                </div>
-                                <div class="setting-description">Show decorations in the code editor</div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableAutoRefresh">
-                                    <label class="setting-label" for="enableAutoRefresh">Auto-Refresh Analysis</label>
-                                </div>
-                                <div class="setting-description">Automatically refresh analysis when code changes</div>
-                            </div>
-                        </div>
-                        
-                        <div class="action-buttons">
-                            <button class="action-button" id="saveBtn">Save Settings</button>
-                            <button class="action-button reset-button" id="resetBtn">Reset to Defaults</button>
-                        </div>
-                        
-                        <div class="success-message" id="successMessage">
-                            Settings saved successfully! 😺
-                        </div>
-                    </div>
-                </div>
-                
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Request current settings from extension
-                    window.addEventListener('load', () => {
-                        vscode.postMessage({
-                            command: 'getSettings'
-                        });
-                    });
-                    
-                    // Apply settings to the form
-                    function applySettings(settings) {
-                        document.getElementById('explanationStyle').value = settings.explanationStyle;
-                        document.getElementById('uiTheme').value = settings.uiTheme;
-                        document.getElementById('animationFrequency').value = settings.animationFrequency;
-                        document.getElementById('enableEmojis').checked = settings.enableEmojis;
-                        document.getElementById('enableAnimations').checked = settings.enableAnimations;
-                        document.getElementById('enableDecorations').checked = settings.enableDecorations;
-                        document.getElementById('enableAutoRefresh').checked = settings.enableAutoRefresh;
-                        document.getElementById('showCatImages').checked = settings.showCatImages;
-                    }
-                    
-                    // Get current settings from form
-                    function getFormSettings() {
-                        return {
-                            explanationStyle: document.getElementById('explanationStyle').value,
-                            uiTheme: document.getElementById('uiTheme').value,
-                            animationFrequency: document.getElementById('animationFrequency').value,
-                            enableEmojis: document.getElementById('enableEmojis').checked,
-                            enableAnimations: document.getElementById('enableAnimations').checked,
-                            enableDecorations: document.getElementById('enableDecorations').checked,
-                            enableAutoRefresh: document.getElementById('enableAutoRefresh').checked,
-                            showCatImages: document.getElementById('showCatImages').checked
-                        };
-                    }
-                    
-                    // Add event listeners to buttons
-                    document.getElementById('saveBtn').addEventListener('click', () => {
-                        const settings = getFormSettings();
-                        vscode.postMessage({
-                            command: 'saveSettings',
-                            settings: settings
-                        });
-                    });
-                    
-                    document.getElementById('resetBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'resetSettings'
-                        });
-                    });
-                    
-                    // Handle messages from extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
-                        
-                        switch (message.command) {
-                            case 'currentSettings':
-                                applySettings(message.settings);
-                                break;
-                                
-                            case 'settingsSaved':
-                                // Show success message
-                                const successMessage = document.getElementById('successMessage');
-                                successMessage.style.display = 'block';
-                                // Hide after a delay
-                                setTimeout(() => {
-                                    successMessage.style.display = 'none';
-                                }, 3000);
-                                break;
-                                
-                            case 'settingsReset':
-                                applySettings(message.settings);
-                                break;
-                        }
-                    });
-                </script>
-            </body>
-            </html>
-        `;
-    }
-    
-    /**
-     * Save settings to VS Code configuration
-     * @private
-     */
-    _saveSettings(newSettings) {
-        const config = vscode.workspace.getConfiguration('codewhiskers');
-        
-        // Update each setting
-        Object.keys(newSettings).forEach(key => {
-            config.update(key, newSettings[key], vscode.ConfigurationTarget.Global);
+        // Create an array of edits
+        const edits = undocumentedSections.map(section => {
+            return new vscode.TextEdit(
+                new vscode.Range(
+                    new vscode.Position(section.range.start.line, 0),
+                    new vscode.Position(section.range.start.line, 0)
+                ),
+                section.suggestion + '\n'
+            );
         });
         
-        // Update internal settings
-        this.updateSettings();
+        // Apply the edits
+        const workspaceEdit = new vscode.WorkspaceEdit();
+        workspaceEdit.set(editor.document.uri, edits);
+        vscode.workspace.applyEdit(workspaceEdit).then(success => {
+            if (success) {
+                vscode.window.showInformationMessage('Documentation added successfully! 😺');
+            } else {
+                vscode.window.showErrorMessage('Failed to add documentation 😿');
+            }
+        });
     }
     
     /**
-     * Reset settings to defaults
+     * Get cat image based on theme and complexity
      * @private
      */
-    _resetSettings() {
-        const config = vscode.workspace.getConfiguration('codewhiskers');
+    _getCatImage(uiTheme, complexity) {
+        // In a real extension, these would be actual SVG or PNG files included with the extension
+        // For now, we'll use placeholder URLs based on theme and complexity
         
-        // Reset each setting to its default
-        config.update('explanationStyle', undefined, vscode.ConfigurationTarget.Global);
-        config.update('uiTheme', undefined, vscode.ConfigurationTarget.Global);
-        config.update('animationFrequency', undefined, vscode.ConfigurationTarget.Global);
-        config.update('enableEmojis', undefined, vscode.ConfigurationTarget.Global);
-        config.update('enableAnimations', undefined, vscode.ConfigurationTarget.Global);
-        config.update('enableDecorations', undefined, vscode.ConfigurationTarget.Global);
-        config.update('enableAutoRefresh', undefined, vscode.ConfigurationTarget.Global);
-        config.update('showCatImages', undefined, vscode.ConfigurationTarget.Global);
+        const baseImageUrl = 'https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/';
         
-        // Update internal settings
-        this.updateSettings();
+        // We would use different cat images based on theme and complexity
+        // but for now we'll just use different VS Code icons as placeholders
+        switch (uiTheme) {
+            case 'tabby':
+                return `${baseImageUrl}${complexity === 'high' ? 'warning' : 'info'}.svg`;
+            case 'siamese':
+                return `${baseImageUrl}${complexity === 'high' ? 'warning' : 'info'}.svg`;
+            case 'calico':
+                return `${baseImageUrl}${complexity === 'high' ? 'warning' : 'info'}.svg`;
+            case 'black':
+                return `${baseImageUrl}${complexity === 'high' ? 'warning' : 'info'}.svg`;
+            default:
+                return `${baseImageUrl}info.svg`;
+        }
+    }
+    
+    /**
+     * Get animation CSS based on frequency setting
+     * @private
+     */
+    _getAnimationCSS(animationFreq) {
+        switch (animationFreq) {
+            case 'low':
+                return '';
+            case 'medium':
+                return `
+                    @keyframes whiskerWiggle {
+                        0% { transform: rotate(0deg); }
+                        25% { transform: rotate(1deg); }
+                        50% { transform: rotate(0deg); }
+                        75% { transform: rotate(-1deg); }
+                        100% { transform: rotate(0deg); }
+                    }
+                    .whiskers.visible {
+                        animation: whiskerWiggle 3s infinite;
+                    }
+                `;
+            case 'high':
+                return `
+                    @keyframes whiskerWiggle {
+                        0% { transform: rotate(0deg); }
+                        25% { transform: rotate(2deg); }
+                        50% { transform: rotate(0deg); }
+                        75% { transform: rotate(-2deg); }
+                        100% { transform: rotate(0deg); }
+                    }
+                    .whiskers.visible {
+                        animation: whiskerWiggle 2s infinite;
+                    }
+                    .cat-image {
+                        transition: transform 0.3s ease;
+                    }
+                    .cat-image:hover {
+                        transform: scale(1.1) rotate(5deg);
+                    }
+                `;
+            default:
+                return '';
+        }
     }
 }
 

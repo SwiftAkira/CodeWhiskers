@@ -89,19 +89,19 @@ class ExplanationEngine {
             explanation += `sets up some variables `;
         }
         
-        // Add more detail about operations - only for the selected code and in order of specificity
-        if (selectedCode.includes("reduce(")) {
-            explanation += "that performs array reduction to calculate a total. ";
-        } else if (selectedCode.includes("map(")) {
-            explanation += "that transforms array elements. ";
-        } else if (selectedCode.includes("filter(")) {
-            explanation += "that filters array elements. ";
-        } else if (selectedCode.includes("fetch(") || selectedCode.includes("axios.")) {
+        // Add more detail about operations - but only for the selected code
+        if (selectedCode.includes("fetch(") || selectedCode.includes("axios.")) {
             explanation += "and makes network requests. ";
         } else if (selectedCode.includes("localStorage") || selectedCode.includes("sessionStorage")) {
             explanation += "and interacts with browser storage. ";
         } else if (selectedCode.includes("addEventListener")) {
             explanation += "and attaches event listeners. ";
+        } else if (selectedCode.includes("reduce(")) {
+            explanation += "that performs array reduction. ";
+        } else if (selectedCode.includes("map(")) {
+            explanation += "that transforms array elements. ";
+        } else if (selectedCode.includes("filter(")) {
+            explanation += "that filters array elements. ";
         } else {
             explanation += "to perform some operations. ";
         }
