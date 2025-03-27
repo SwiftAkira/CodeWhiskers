@@ -2,6 +2,32 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.3.1] - 2024-03-27
+
+### Added
+- Interactive welcome wizard:
+  - New user onboarding experience with guided feature tour
+  - Quick access to key features with visual guides
+  - Keyboard shortcut reference
+  - Animated interface with cat-themed elements
+- Status bar quick actions menu:
+  - Convenient access to all WhiskerCode features from status bar
+  - VS Code-native dropdown menu with icons for each feature
+- Export and sharing capabilities:
+  - Export dependency graphs as SVG, PNG, or JSON
+  - Copy shareable links to send to teammates
+  - Visual feedback for successful operations
+  - Team collaboration support
+
+## [1.3.0] - 2024-03-27
+
+### Fixed
+- Fixed critical bug in complexity visualization:
+  - Resolved issue where all functions were showing the same complexity value (111)
+  - Fixed calculation of cyclomatic complexity in dependency graph
+  - Improved debugging with better logging for complexity calculations
+  - More accurate node sizing and coloring based on actual complexity values
+
 ## [1.2.8] - 2024-03-27
 
 ### Fixed

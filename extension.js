@@ -110,6 +110,18 @@ function activate(context) {
             performanceAnalyzer.setCatThemeManager(catThemeManager);
         }
 
+        // Show welcome wizard for first-time users
+        ui.showWelcomeWizard(context);
+        
+        // Register a command to manually show the welcome wizard
+        const showWelcomeCommand = vscode.commands.registerCommand('whiskercode.showWelcome', () => {
+            context.globalState.update('whiskercode.hasShownWelcome', false);
+            ui.showWelcomeWizard(context);
+        });
+        
+        // Add status bar with quick actions menu
+        const statusBarCommand = ui.initializeStatusBar();
+
         // Register commands with safety checks
         const explainCodeCommand = vscode.commands.registerCommand('whiskercode.explainCode', async () => {
             if (!parser || !explainer || !ui) {
@@ -642,7 +654,7 @@ function activate(context) {
             }
         });
         
-        // Register all commands
+        // Register all disposable items with context
         context.subscriptions.push(
             explainCodeCommand,
             traceVariableCommand,
@@ -655,7 +667,9 @@ function activate(context) {
             detectPerformanceCommand,
             showCodeMetricsCommand,
             applyQuickFixCommand,
-            applyRefactoringCommand
+            applyRefactoringCommand,
+            showWelcomeCommand,
+            statusBarCommand
         );
         
         // Make theme manager available to UI components

@@ -866,13 +866,16 @@ class Parser {
         
         // Count decision points based on language
         const decisionPoints = this._countDecisionPoints(code, language);
+        console.log('Decision points:', decisionPoints);
+        
         complexity += decisionPoints.total;
+        console.log('Calculated complexity:', complexity);
         
         // Calculate cognitive complexity factors
         const nestingLevel = this._calculateNestingLevel(code, language);
         const numberOfParameters = this._countParameters(code, language);
         
-        return {
+        const result = {
             cyclomaticComplexity: complexity,
             lineCount: lineCount,
             decisionPoints: decisionPoints,
@@ -880,6 +883,9 @@ class Parser {
             parameterCount: numberOfParameters,
             complexityLevel: this._determineComplexityLevel(complexity)
         };
+        
+        console.log('Final complexity result:', result);
+        return result;
     }
     
     /**
@@ -960,13 +966,17 @@ class Parser {
         }
         
         // Generate nodes and links for visualization
-        const nodes = functions.map(func => ({
-            id: func.name,
-            complexity: this.calculateCyclomaticComplexity(
-                code.substring(func.range.start, func.range.end), 
-                language
-            ).cyclomaticComplexity
-        }));
+        const nodes = functions.map(func => {
+            const funcCode = code.substring(func.range.start, func.range.end);
+            const complexityResult = this.calculateCyclomaticComplexity(funcCode, language);
+            
+            console.log(`Function ${func.name} complexity: ${complexityResult.cyclomaticComplexity}`);
+            
+            return {
+                id: func.name,
+                complexity: complexityResult.cyclomaticComplexity
+            };
+        });
         
         const links = [];
         for (const [caller, deps] of Object.entries(dependencies)) {

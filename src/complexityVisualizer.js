@@ -8,6 +8,7 @@ class ComplexityVisualizer {
     constructor() {
         this._panel = null;
         this._catThemeManager = null;
+        this._disposables = [];
     }
 
     /**
@@ -58,35 +59,56 @@ class ComplexityVisualizer {
     }
     
     /**
-     * Display function dependency graph in a webview panel
+     * Show dependency graph in a webview panel
      * @param {object} dependencyData - Dependency graph data
      * @param {string} fileName - Name of the file being analyzed
      */
     showDependencyGraph(dependencyData, fileName) {
-        const title = 'CodeWhiskers: Dependency Graph - ' + fileName;
-        
-        // Create webview panel if it doesn't exist
-        if (!this._panel) {
-            this._panel = vscode.window.createWebviewPanel(
-                'codewhiskersDependency',
-                title,
-                vscode.ViewColumn.Two,
-                {
-                    enableScripts: true,
-                    retainContextWhenHidden: true
-                }
-            );
-            
-            // Handle panel disposal
-            this._panel.onDidDispose(() => {
-                this._panel = null;
-            });
-        } else {
-            this._panel.title = title;
+        // Create or show webview panel
+        if (this._panel) {
+            this._panel.dispose();
         }
         
-        // Set panel HTML content
-        this._panel.webview.html = this._generateDependencyGraphHTML(dependencyData, fileName);
+        this._panel = vscode.window.createWebviewPanel(
+            'dependencyGraph',
+            `Function Dependencies: ${fileName}`,
+            vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            }
+        );
+        
+        // Generate HTML for the dependency graph
+        let html = this._generateDependencyGraphHTML(dependencyData, fileName);
+        
+        // Add sharing UI to the HTML
+        html = this._addSharingUI(html, dependencyData, fileName);
+        
+        // Set the webview content
+        this._panel.webview.html = html;
+        
+        // Handle messages from the webview
+        this._panel.webview.onDidReceiveMessage(
+            message => {
+                switch (message.command) {
+                    case 'showFunctionDetail':
+                        this._showFunctionDetail(message.functionName);
+                        return;
+                }
+            },
+            undefined,
+            this._disposables
+        );
+        
+        // Clean up when the panel is closed
+        this._panel.onDidDispose(
+            () => {
+                this._panel = undefined;
+            },
+            null,
+            this._disposables
+        );
     }
     
     /**
@@ -1350,6 +1372,313 @@ class ComplexityVisualizer {
             catThemeCSS: this._catThemeManager.getThemeCSS(),
             backgroundElements: this._catThemeManager.getBackgroundElements()
         });
+    }
+
+    /**
+     * Generate share link for dependency graph
+     * @param {object} dependencyData - Dependency graph data
+     * @param {string} fileName - Name of the file being analyzed
+     * @returns {string} - URL with encoded data
+     * @private
+     */
+    _generateShareLink(dependencyData, fileName) {
+        // Create a simplified version of the dependency data to reduce size
+        const shareData = {
+            nodes: dependencyData.nodes.map(node => ({
+                id: node.id,
+                c: node.complexity
+            })),
+            links: dependencyData.links.map(link => ({
+                s: typeof link.source === 'object' ? link.source.id : link.source,
+                t: typeof link.target === 'object' ? link.target.id : link.target
+            })),
+            file: fileName,
+            v: '1.3.1'
+        };
+        
+        // Encode the data as a JSON string and then URI component
+        const encodedData = encodeURIComponent(JSON.stringify(shareData));
+        
+        // Generate URL for web viewer (hypothetical hosted viewer)
+        return `https://whiskercode.dev/share?data=${encodedData}`;
+    }
+
+    /**
+     * Add sharing UI elements to dependency graph HTML
+     * @param {string} html - The existing HTML
+     * @param {object} dependencyData - Dependency graph data
+     * @param {string} fileName - Name of the file being analyzed
+     * @returns {string} - Updated HTML with sharing UI
+     * @private
+     */
+    _addSharingUI(html, dependencyData, fileName) {
+        // Generate share link
+        const shareLink = this._generateShareLink(dependencyData, fileName);
+        
+        // Create export and sharing panel HTML
+        const sharingHTML = `
+            <div class="sharing-panel">
+                <h3>📤 Share & Export</h3>
+                <div class="sharing-options">
+                    <button id="export-svg" class="action-button">
+                        <span class="icon">📊</span> SVG
+                    </button>
+                    <button id="export-png" class="action-button">
+                        <span class="icon">🖼️</span> PNG
+                    </button>
+                    <button id="export-json" class="action-button">
+                        <span class="icon">📋</span> JSON
+                    </button>
+                    <button id="copy-link" class="action-button">
+                        <span class="icon">🔗</span> Copy Link
+                    </button>
+                </div>
+                <div class="share-link-container">
+                    <input id="share-link" type="text" readonly value="${shareLink}" />
+                    <div id="copy-success" class="copy-success">Link copied! 🐱</div>
+                </div>
+                <p class="share-info">
+                    <small>Share this link with teammates to show them your dependency graph</small>
+                </p>
+            </div>
+        `;
+        
+        // Add sharing panel styling
+        const sharingStyles = `
+            .sharing-panel {
+                background-color: var(--vscode-editor-inactiveSelectionBackground);
+                border-radius: 8px;
+                padding: 15px;
+                margin-top: 20px;
+            }
+            
+            .sharing-options {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .action-button {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                background-color: var(--vscode-button-background);
+                color: var(--vscode-button-foreground);
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                transition: background-color 0.2s;
+            }
+            
+            .action-button:hover {
+                background-color: var(--vscode-button-hoverBackground);
+            }
+            
+            .action-button .icon {
+                font-size: 16px;
+            }
+            
+            .share-link-container {
+                position: relative;
+                margin-bottom: 10px;
+            }
+            
+            #share-link {
+                width: 100%;
+                padding: 8px;
+                border-radius: 4px;
+                border: 1px solid var(--vscode-input-border);
+                background-color: var(--vscode-input-background);
+                color: var(--vscode-input-foreground);
+                font-family: monospace;
+            }
+            
+            .copy-success {
+                position: absolute;
+                top: -30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: var(--vscode-terminal-ansiGreen);
+                color: white;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                opacity: 0;
+                transition: opacity 0.3s;
+                pointer-events: none;
+            }
+            
+            .copy-success.show {
+                opacity: 1;
+                animation: float-up 2s forwards;
+            }
+            
+            @keyframes float-up {
+                0% { transform: translate(-50%, 0); opacity: 0; }
+                20% { transform: translate(-50%, -5px); opacity: 1; }
+                80% { transform: translate(-50%, -15px); opacity: 1; }
+                100% { transform: translate(-50%, -30px); opacity: 0; }
+            }
+            
+            .share-info {
+                color: var(--vscode-descriptionForeground);
+                text-align: center;
+                margin: 0;
+            }
+        `;
+        
+        // Add JavaScript functions for export and sharing
+        const sharingScripts = `
+            // Export as SVG
+            document.getElementById('export-svg').addEventListener('click', () => {
+                // Get SVG element
+                const svgEl = document.querySelector('#graph svg');
+                
+                // Create a clone of the SVG for export
+                const clonedSvg = svgEl.cloneNode(true);
+                
+                // Clean up the cloned SVG for export (remove any unwanted elements)
+                // ...
+                
+                // Serialize SVG to string
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(clonedSvg);
+                
+                // Create a blob and download link
+                const blob = new Blob([svgString], {type: 'image/svg+xml'});
+                const url = URL.createObjectURL(blob);
+                
+                // Create and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'dependency-graph.svg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Show success message
+                showSuccessMessage('SVG exported! 🐱');
+            });
+            
+            // Export as PNG
+            document.getElementById('export-png').addEventListener('click', () => {
+                // Get SVG element
+                const svgEl = document.querySelector('#graph svg');
+                
+                // Create a canvas element
+                const canvas = document.createElement('canvas');
+                const width = svgEl.width.baseVal.value;
+                const height = svgEl.height.baseVal.value;
+                
+                // Set canvas dimensions
+                canvas.width = width * 2; // Scale up for better quality
+                canvas.height = height * 2;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                
+                // Get canvas context and set background
+                const ctx = canvas.getContext('2d');
+                ctx.scale(2, 2); // Scale for better quality
+                ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+                ctx.fillRect(0, 0, width, height);
+                
+                // Convert SVG to data URL
+                const svgString = new XMLSerializer().serializeToString(svgEl);
+                const svg = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+                const url = URL.createObjectURL(svg);
+                
+                // Create an image from SVG
+                const img = new Image();
+                img.onload = function() {
+                    // Draw image to canvas
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    
+                    // Convert canvas to PNG and download
+                    const pngUrl = canvas.toDataURL('image/png');
+                    const a = document.createElement('a');
+                    a.href = pngUrl;
+                    a.download = 'dependency-graph.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    // Show success message
+                    showSuccessMessage('PNG exported! 🐱');
+                };
+                img.src = url;
+            });
+            
+            // Export as JSON
+            document.getElementById('export-json').addEventListener('click', () => {
+                // Create JSON of graph data
+                const jsonString = JSON.stringify(data, null, 2);
+                
+                // Create a blob and download link
+                const blob = new Blob([jsonString], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                
+                // Create and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'dependency-data.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Show success message
+                showSuccessMessage('JSON exported! 🐱');
+            });
+            
+            // Copy share link
+            document.getElementById('copy-link').addEventListener('click', () => {
+                const shareLink = document.getElementById('share-link');
+                shareLink.select();
+                document.execCommand('copy');
+                
+                // Show success message
+                showSuccessMessage('Link copied! 🐱');
+            });
+            
+            function showSuccessMessage(message) {
+                const successEl = document.getElementById('copy-success');
+                successEl.textContent = message;
+                successEl.classList.add('show');
+                
+                // Hide after animation completes
+                setTimeout(() => {
+                    successEl.classList.remove('show');
+                }, 2000);
+            }
+        `;
+        
+        // Insert sharing UI into HTML
+        const closingBodyTag = '</body>';
+        const beforeScripts = html.lastIndexOf('<script>');
+        
+        // Insert styles
+        let modifiedHtml = html.replace('</style>', `${sharingStyles}</style>`);
+        
+        // Insert sharing UI before closing container div
+        const closingContainerIndex = modifiedHtml.indexOf('</div><!-- End of container -->');
+        if (closingContainerIndex !== -1) {
+            modifiedHtml = modifiedHtml.slice(0, closingContainerIndex) + 
+                           sharingHTML + 
+                           modifiedHtml.slice(closingContainerIndex);
+        } else {
+            // Fallback: Insert before closing body
+            modifiedHtml = modifiedHtml.replace(closingBodyTag, sharingHTML + closingBodyTag);
+        }
+        
+        // Insert scripts before closing body
+        modifiedHtml = modifiedHtml.replace(closingBodyTag, sharingScripts + closingBodyTag);
+        
+        return modifiedHtml;
     }
 }
 

@@ -4261,6 +4261,388 @@ const results = await Promise.all(promises);`;
         // Return rounded score
         return Math.round(score);
     }
+
+    /**
+     * Show welcome wizard for first-time users
+     * @param {vscode.ExtensionContext} context - Extension context
+     */
+    showWelcomeWizard(context) {
+        // Check if this is first run
+        const hasShownWelcome = context.globalState.get('whiskercode.hasShownWelcome');
+        if (hasShownWelcome) {
+            return;
+        }
+
+        // Create welcome panel
+        const panel = vscode.window.createWebviewPanel(
+            'whiskercodeWelcome',
+            '😺 Welcome to WhiskerCode',
+            vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            }
+        );
+
+        // Set HTML content
+        panel.webview.html = this._generateWelcomeHTML();
+
+        // Handle wizard navigation and feature demos
+        panel.webview.onDidReceiveMessage(async (message) => {
+            switch (message.command) {
+                case 'showFeature':
+                    // Close welcome panel
+                    panel.dispose();
+                    
+                    // Open demo for selected feature
+                    if (message.feature === 'dependency') {
+                        vscode.commands.executeCommand('whiskercode.visualizeDependencies');
+                    } else if (message.feature === 'performance') {
+                        vscode.commands.executeCommand('whiskercode.detectPerformance');
+                    } else if (message.feature === 'complexity') {
+                        vscode.commands.executeCommand('whiskercode.analyzeComplexity');
+                    }
+                    break;
+                
+                case 'closeWizard':
+                    // Remember that we've shown the wizard
+                    context.globalState.update('whiskercode.hasShownWelcome', true);
+                    panel.dispose();
+                    break;
+            }
+        });
+
+        // Update state when panel is closed
+        panel.onDidDispose(() => {
+            context.globalState.update('whiskercode.hasShownWelcome', true);
+        });
+    }
+
+    /**
+     * Generate HTML for welcome wizard
+     * @private
+     */
+    _generateWelcomeHTML() {
+        return /*html*/`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Welcome to WhiskerCode</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                        padding: 0;
+                        margin: 0;
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    .container {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 30px;
+                    }
+                    .logo {
+                        font-size: 72px;
+                        margin-bottom: 10px;
+                        animation: bounce 2s infinite;
+                    }
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-20px); }
+                    }
+                    h1 {
+                        font-size: 2.5em;
+                        margin: 0;
+                        color: var(--vscode-terminal-ansiMagenta);
+                    }
+                    .subtitle {
+                        font-size: 1.2em;
+                        color: var(--vscode-descriptionForeground);
+                        margin-bottom: 30px;
+                    }
+                    .features {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+                        gap: 25px;
+                        margin-bottom: 40px;
+                    }
+                    .feature-card {
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        border-radius: 10px;
+                        padding: 20px;
+                        transition: transform 0.3s, box-shadow 0.3s;
+                        cursor: pointer;
+                        position: relative;
+                        overflow: hidden;
+                    }
+                    .feature-card:hover {
+                        transform: translateY(-5px);
+                        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    }
+                    .feature-card:hover .feature-icon {
+                        transform: scale(1.2);
+                    }
+                    .feature-card:hover::after {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+                        z-index: 1;
+                    }
+                    .feature-icon {
+                        font-size: 2.5em;
+                        margin-bottom: 15px;
+                        transition: transform 0.3s;
+                    }
+                    .feature-title {
+                        font-size: 1.2em;
+                        font-weight: bold;
+                        margin-bottom: 10px;
+                        color: var(--vscode-terminal-ansiCyan);
+                    }
+                    .feature-desc {
+                        color: var(--vscode-foreground);
+                        line-height: 1.5;
+                    }
+                    .nav-buttons {
+                        display: flex;
+                        justify-content: center;
+                        gap: 15px;
+                        margin-top: 20px;
+                    }
+                    button {
+                        background-color: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        transition: background-color 0.2s;
+                    }
+                    button:hover {
+                        background-color: var(--vscode-button-hoverBackground);
+                    }
+                    .secondary {
+                        background-color: transparent;
+                        border: 1px solid var(--vscode-button-background);
+                    }
+                    .paw-print {
+                        position: absolute;
+                        font-size: 20px;
+                        opacity: 0.2;
+                        transform: rotate(var(--rotation));
+                        z-index: 0;
+                    }
+                    .footer {
+                        text-align: center;
+                        margin-top: 40px;
+                        color: var(--vscode-descriptionForeground);
+                        font-size: 0.9em;
+                    }
+                    .keyboard-shortcuts {
+                        margin-top: 30px;
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        border-radius: 10px;
+                        padding: 20px;
+                    }
+                    .shortcut {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 10px;
+                    }
+                    .key {
+                        background-color: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        padding: 5px 10px;
+                        border-radius: 4px;
+                        font-family: monospace;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="logo">🐱</div>
+                        <h1>Welcome to WhiskerCode</h1>
+                        <p class="subtitle">Your purr-fect coding companion for understanding and optimizing code!</p>
+                    </div>
+                    
+                    <div class="features">
+                        <div class="feature-card" onclick="showFeature('dependency')">
+                            <div class="feature-icon">🕸️</div>
+                            <div class="feature-title">Function Dependency Graph</div>
+                            <p class="feature-desc">Visualize relationships between functions with an interactive, cat-themed graph.</p>
+                        </div>
+                        
+                        <div class="feature-card" onclick="showFeature('performance')">
+                            <div class="feature-icon">⚡</div>
+                            <div class="feature-title">Performance Analysis</div>
+                            <p class="feature-desc">Identify performance hotspots and get one-click fixes.</p>
+                        </div>
+                        
+                        <div class="feature-card" onclick="showFeature('complexity')">
+                            <div class="feature-icon">🧩</div>
+                            <div class="feature-title">Code Complexity</div>
+                            <p class="feature-desc">Analyze code complexity and get suggestions for simplification.</p>
+                        </div>
+                        
+                        <div class="feature-card" onclick="showFeature('explain')">
+                            <div class="feature-icon">💡</div>
+                            <div class="feature-title">Code Explanations</div>
+                            <p class="feature-desc">Get friendly, cat-themed explanations of any code selection.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="keyboard-shortcuts">
+                        <h2>Keyboard Shortcuts</h2>
+                        <div class="shortcut">
+                            <span>Explain Selected Code</span>
+                            <span class="key">Cmd+Shift+E</span>
+                        </div>
+                        <div class="shortcut">
+                            <span>Trace Variable Usage</span>
+                            <span class="key">Cmd+Shift+T</span>
+                        </div>
+                        <div class="shortcut">
+                            <span>Analyze Code Complexity</span>
+                            <span class="key">Cmd+Shift+C</span>
+                        </div>
+                        <div class="shortcut">
+                            <span>Detect Performance Hotspots</span>
+                            <span class="key">Cmd+Shift+P</span>
+                        </div>
+                    </div>
+                    
+                    <div class="nav-buttons">
+                        <button onclick="skipWizard()">Skip Tour</button>
+                        <button onclick="getStarted()">Get Started</button>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>WhiskerCode v1.3.0 • <a href="https://github.com/SwiftAkira/WhiskerCode" target="_blank">GitHub</a></p>
+                    </div>
+                </div>
+                
+                <!-- Add some decorative paw prints -->
+                <div class="paw-print" style="top: 10%; left: 5%; --rotation: 45deg;">🐾</div>
+                <div class="paw-print" style="top: 30%; right: 10%; --rotation: -20deg;">🐾</div>
+                <div class="paw-print" style="bottom: 20%; left: 15%; --rotation: 15deg;">🐾</div>
+                <div class="paw-print" style="bottom: 30%; right: 20%; --rotation: -45deg;">🐾</div>
+                
+                <script>
+                    function showFeature(feature) {
+                        vscode.postMessage({
+                            command: 'showFeature',
+                            feature: feature
+                        });
+                    }
+                    
+                    function skipWizard() {
+                        vscode.postMessage({
+                            command: 'closeWizard'
+                        });
+                    }
+                    
+                    function getStarted() {
+                        vscode.postMessage({
+                            command: 'closeWizard'
+                        });
+                    }
+                    
+                    // Animation: Add random paw prints over time
+                    setInterval(() => {
+                        const paw = document.createElement('div');
+                        paw.className = 'paw-print';
+                        paw.textContent = '🐾';
+                        paw.style.top = Math.random() * 100 + '%';
+                        paw.style.left = Math.random() * 100 + '%';
+                        paw.style.setProperty('--rotation', (Math.random() * 90 - 45) + 'deg');
+                        document.body.appendChild(paw);
+                        
+                        // Remove after animation
+                        setTimeout(() => {
+                            paw.remove();
+                        }, 5000);
+                    }, 3000);
+                    
+                    // Access the VS Code API
+                    const vscode = acquireVsCodeApi();
+                </script>
+            </body>
+            </html>
+        `;
+    }
+
+    /**
+     * Initialize status bar with quick access menu
+     */
+    initializeStatusBar() {
+        // Create status bar item
+        this.statusBarItem = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right,
+            100
+        );
+        
+        this.statusBarItem.text = '$(cat) WhiskerCode';
+        this.statusBarItem.tooltip = 'Click for WhiskerCode quick actions';
+        this.statusBarItem.command = 'whiskercode.showQuickActions';
+        this.statusBarItem.show();
+        
+        // Register command for quick actions menu
+        return vscode.commands.registerCommand('whiskercode.showQuickActions', () => {
+            // Show quick actions as a dropdown menu
+            const actions = [
+                {
+                    label: '$(light-bulb) Explain Selected Code',
+                    description: 'Get a cat-friendly explanation',
+                    command: 'whiskercode.explainCode'
+                },
+                {
+                    label: '$(graph) Visualize Dependencies',
+                    description: 'See function relationships',
+                    command: 'whiskercode.visualizeDependencies'
+                },
+                {
+                    label: '$(flame) Performance Analysis',
+                    description: 'Find and fix bottlenecks',
+                    command: 'whiskercode.detectPerformance'
+                },
+                {
+                    label: '$(circuit-board) Analyze Complexity',
+                    description: 'Check code complexity',
+                    command: 'whiskercode.analyzeComplexity'
+                },
+                {
+                    label: '$(paintcan) Change Theme',
+                    description: 'Switch cat theme',
+                    command: 'whiskercode.changeCatTheme'
+                },
+                {
+                    label: '$(book) Welcome Guide',
+                    description: 'Show the welcome guide',
+                    command: 'whiskercode.showWelcome'
+                }
+            ];
+            
+            vscode.window.showQuickPick(actions, {
+                placeHolder: 'Choose a WhiskerCode action...'
+            }).then(selection => {
+                if (selection) {
+                    vscode.commands.executeCommand(selection.command);
+                }
+            });
+        });
+    }
 }
 
 module.exports = {
