@@ -5,6 +5,8 @@ const uiLayer = require('./src/uiLayer');
 const ComplexityVisualizer = require('./src/complexityVisualizer');
 const CatThemeManager = require('./src/catThemeManager');
 const PerformanceAnalyzer = require('./src/performanceAnalyzer');
+const { AdvancedParser } = require('./src/advancedParser');
+const { EnhancedPerformanceAnalyzer } = require('./src/enhancedPerformance');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -15,6 +17,7 @@ function activate(context) {
     try {
         // Initialize components with error handling
         let parser, explainer, ui, complexityVisualizer, catThemeManager, performanceAnalyzer;
+        let advancedParser, enhancedPerformanceAnalyzer;
         
         try {
             parser = new Parser();
@@ -22,6 +25,14 @@ function activate(context) {
         } catch (error) {
             console.error('Error initializing Parser:', error);
             parser = null;
+        }
+        
+        try {
+            advancedParser = new AdvancedParser();
+            console.log('AdvancedParser initialized successfully');
+        } catch (error) {
+            console.error('Error initializing AdvancedParser:', error);
+            advancedParser = null;
         }
         
         try {
@@ -62,6 +73,14 @@ function activate(context) {
         } catch (error) {
             console.error('Error initializing PerformanceAnalyzer:', error);
             performanceAnalyzer = null;
+        }
+        
+        try {
+            enhancedPerformanceAnalyzer = new EnhancedPerformanceAnalyzer();
+            console.log('EnhancedPerformanceAnalyzer initialized successfully');
+        } catch (error) {
+            console.error('Error initializing EnhancedPerformanceAnalyzer:', error);
+            enhancedPerformanceAnalyzer = null;
         }
         
         // Connect components that need references to each other
@@ -264,14 +283,14 @@ function activate(context) {
 
         // Add command for code complexity analysis
         const analyzeComplexityCommand = vscode.commands.registerCommand('whiskercode.analyzeComplexity', async () => {
+            if (!parser || !complexityVisualizer || !ui || !advancedParser) {
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
+                return;
+            }
+            
             const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Analyzing code complexity...');
             
             try {
-                if (!parser || !complexityVisualizer) {
-                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
-                    return;
-                }
-                
                 const editor = vscode.window.activeTextEditor;
                 if (!editor) {
                     vscode.window.showWarningMessage('No active editor found. Please open a file.');
@@ -281,30 +300,28 @@ function activate(context) {
                 const document = editor.document;
                 const fileContent = document.getText();
                 const language = document.languageId;
-                const fileName = document.fileName.split('/').pop();
                 
-                // Use setTimeout to prevent UI blocking
-                setTimeout(async () => {
-                    try {
-                        const functionAnalyses = parser.analyzeFunctionComplexity(fileContent, language);
-                        
-                        if (functionAnalyses.length === 0) {
-                            vscode.window.showInformationMessage('No functions found to analyze complexity.');
-                            return;
-                        }
-                        
-                        complexityVisualizer.showComplexityAnalysis(functionAnalyses, fileName);
-                    } catch (error) {
-                        console.error('Error analyzing complexity:', error);
-                        vscode.window.showErrorMessage(`Error analyzing complexity: ${error.message}`);
-                    } finally {
-                        loadingMessage.dispose();
-                    }
-                }, 0);
+                // Use the advanced parser for enhanced metrics
+                const advancedMetrics = advancedParser.parseCode(fileContent, language);
+                const refactoringOpportunities = advancedParser.findRefactoringOpportunities(fileContent, language);
+                
+                // Combine with traditional metrics
+                const complexity = parser.analyzeFunctionComplexity(fileContent, language);
+                
+                // Create combined analysis
+                const combinedAnalysis = {
+                    functions: complexity,
+                    codeMetrics: advancedMetrics.complexity,
+                    patterns: advancedMetrics.patterns,
+                    refactoring: refactoringOpportunities
+                };
+                
+                complexityVisualizer.visualizeComplexity(combinedAnalysis, language);
             } catch (error) {
+                console.error('Error analyzing complexity:', error);
+                vscode.window.showErrorMessage(`Error analyzing complexity: ${error.message}`);
+            } finally {
                 loadingMessage.dispose();
-                console.error('Error in complexity analysis command:', error);
-                vscode.window.showErrorMessage(`Error: ${error.message}`);
             }
         });
 
@@ -375,14 +392,14 @@ function activate(context) {
 
         // Add command for performance hotspot detection
         const detectPerformanceCommand = vscode.commands.registerCommand('whiskercode.detectPerformance', async () => {
-            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Detecting performance hotspots...');
+            if (!parser || !enhancedPerformanceAnalyzer || !ui) {
+                vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
+                return;
+            }
+            
+            const loadingMessage = vscode.window.setStatusBarMessage('WhiskerCode: Analyzing performance...');
             
             try {
-                if (!parser || !performanceAnalyzer) {
-                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
-                    return;
-                }
-                
                 const editor = vscode.window.activeTextEditor;
                 if (!editor) {
                     vscode.window.showWarningMessage('No active editor found. Please open a file.');
@@ -392,35 +409,26 @@ function activate(context) {
                 const document = editor.document;
                 const fileContent = document.getText();
                 const language = document.languageId;
-                const fileName = document.fileName.split('/').pop();
                 
-                // Use setTimeout to prevent UI blocking
-                setTimeout(async () => {
-                    try {
-                        // First method: Use the parser to detect performance hotspots
-                        const hotspots = parser.detectPerformanceHotspots(fileContent, language);
-                        
-                        // Second method: Use the performance analyzer for more in-depth analysis
-                        const performanceIssues = performanceAnalyzer.analyzePerformance(fileContent, language);
-                        
-                        if (hotspots.length === 0 && performanceIssues.length === 0) {
-                            vscode.window.showInformationMessage('No performance hotspots detected! Your code looks optimized.');
-                            return;
-                        }
-                        
-                        // Show performance analysis
-                        performanceAnalyzer.showPerformanceAnalysis(performanceIssues, fileName);
-                    } catch (error) {
-                        console.error('Error detecting performance hotspots:', error);
-                        vscode.window.showErrorMessage(`Error detecting performance hotspots: ${error.message}`);
-                    } finally {
-                        loadingMessage.dispose();
-                    }
-                }, 0);
+                // Use both analyzers for comprehensive results
+                const basicResults = performanceAnalyzer ? performanceAnalyzer.analyzePerformance(fileContent, language) : [];
+                const enhancedResults = enhancedPerformanceAnalyzer.analyzePerformance(fileContent, language);
+                
+                // Combine results for display
+                const combinedAnalysis = {
+                    issues: enhancedResults.issues,
+                    metrics: enhancedResults.complexityMetrics,
+                    optimizations: enhancedResults.optimizations,
+                    bestPractices: enhancedResults.bestPractices,
+                    score: enhancedResults.overallScore
+                };
+                
+                ui.showPerformanceAnalysis(combinedAnalysis, language);
             } catch (error) {
+                console.error('Error analyzing performance:', error);
+                vscode.window.showErrorMessage(`Error analyzing performance: ${error.message}`);
+            } finally {
                 loadingMessage.dispose();
-                console.error('Error in performance detection command:', error);
-                vscode.window.showErrorMessage(`Error: ${error.message}`);
             }
         });
 
@@ -448,7 +456,7 @@ function activate(context) {
 
     } catch (error) {
         console.error('Fatal error during WhiskerCode activation:', error);
-        vscode.window.showErrorMessage(`Fatal error initializing WhiskerCode: ${error.message}`);
+        vscode.window.showErrorMessage(`WhiskerCode failed to activate: ${error.message}`);
     }
 }
 

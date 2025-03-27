@@ -2,6 +2,29 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.1.0] - 2024-03-20
+
+### Added
+- Advanced code parsing capabilities with support for modern language features
+  - Enhanced detection of ES6+ JavaScript features
+  - Improved TypeScript parsing with generic type support
+  - React component and hook pattern recognition
+- Enhanced performance analysis engine
+  - Algorithmic complexity detection (O(1), O(n), O(n²), O(n³))
+  - Memory usage optimization suggestions
+  - Space complexity analysis
+  - Best practices recommendations
+- Cognitive complexity metrics
+  - Code maintainability scoring
+  - Nesting depth analysis
+  - Refactoring opportunity detection
+- Duplicated code pattern finder
+- Context-aware optimizations for:
+  - React components and hooks
+  - Async/await and Promise patterns
+  - DOM manipulation
+  - Data structure selection
+
 ## [1.0.3] - 2024-03-20
 
 ### Added
