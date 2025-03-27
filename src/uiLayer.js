@@ -2697,144 +2697,80 @@ class UILayer {
      * @param {string} language - Language of the analyzed code
      */
     showPerformanceIssues(analysis, language) {
-        const { issues, metrics, optimizations, bestPractices, score } = analysis;
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return;
         
-        // Create HTML content
-        let content = `
-            <div class="performance-container">
-                <div class="performance-header">
-                    <h2 class="performance-title">Performance Analysis</h2>
-                    <div class="score-badge ${this._getScoreClass(score)}">
-                        ${score}/100
-                    </div>
-                </div>
-                
-                <h3 class="issues-heading">Issues Found (${issues.length})</h3>
-                <div class="issues-container">
-        `;
+        const fileName = editor.document.fileName.split('/').pop();
         
-        if (issues.length === 0) {
-            content += `<p>No performance issues found! 🎉</p>`;
-        } else {
-            issues.forEach(issue => {
-                content += `
-                    <div class="issue-card ${issue.severity}">
-                        <div class="issue-header">
-                            <span class="severity-badge ${issue.severity}">${issue.severity}</span>
-                            <h4>${issue.description}</h4>
-                        </div>
-                        <div class="issue-details">
-                            <pre><code>${issue.context || issue.match}</code></pre>
-                            <p><strong>Suggestion:</strong> ${issue.suggestion}</p>
-                            ${issue.lineNumber ? `<p><strong>Line:</strong> ${issue.lineNumber}</p>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-        }
+        // Extract issues from the analysis
+        const issues = analysis.issues || [];
         
-        content += `</div>`;
+        // Generate unique IDs for each issue
+        const issuesWithIds = issues.map((issue, index) => {
+            return {
+                ...issue,
+                id: `issue-${Date.now()}-${index}`
+            };
+        });
         
-        // Add performance metrics
-        if (metrics && Object.keys(metrics).length > 0) {
-            content += `
-                <h3 class="metrics-heading">Performance Metrics</h3>
-                <div class="metrics-container">
-            `;
-            
-            Object.entries(metrics).forEach(([key, value]) => {
-                content += `
-                    <div class="metric-card">
-                        <div class="metric-label">${key}</div>
-                        <div class="metric-value">${value}</div>
-                    </div>
-                `;
-            });
-            
-            content += `</div>`;
-        }
+        // Save issues for reference
+        this._currentIssues = issuesWithIds;
+        this._currentEditor = editor;
         
-        // Add best practices
-        if (bestPractices && bestPractices.length > 0) {
-            content += `
-                <h3 class="practices-heading">Best Practices</h3>
-                <div class="best-practices-container">
-            `;
-            
-            bestPractices.forEach(practice => {
-                content += `
-                    <div class="practice-card">
-                        <div class="practice-icon">✓</div>
-                        <div class="practice-content">
-                            <h4>${practice.title}</h4>
-                            <p>${practice.description}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            content += `</div>`;
-        }
+        // Create webview
+        const panel = this.showPanel('Performance Analysis', this._generatePerformanceHTML(issuesWithIds, fileName));
         
-        // Add optimization suggestions
-        if (optimizations && optimizations.length > 0) {
-            content += `
-                <h3 class="optimizations-heading">Optimization Opportunities (${optimizations.length})</h3>
-                <div class="optimizations-container">
-            `;
-            
-            optimizations.forEach(opt => {
-                content += `
-                    <div class="optimization-card">
-                        <h4>💡 ${opt.description}</h4>
-                        <p>${opt.suggestion}</p>
-                        ${opt.code ? `<pre><code>${opt.code}</code></pre>` : ''}
-                    </div>
-                `;
-            });
-            
-            content += `</div>`;
-        }
-        
-        content += `</div>`; // Close performance-container
-        
-        // Create panel with content
-        const panel = vscode.window.createWebviewPanel(
-            'performanceAnalysis',
-            'WhiskerCode: Performance Analysis',
-            vscode.ViewColumn.Two,
-            {
-                enableScripts: true
+        // Handle messages from the webview
+        panel.webview.onDidReceiveMessage(message => {
+            switch (message.command) {
+                case 'showIssueLocation':
+                    if (message.lineNumber) {
+                        const position = new vscode.Position(message.lineNumber - 1, 0);
+                        editor.selection = new vscode.Selection(position, position);
+                        editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+                    }
+                    break;
+                case 'fixIssue':
+                    if (message.issueId) {
+                        const issue = this._currentIssues.find(i => i.id === message.issueId);
+                        if (issue) {
+                            try {
+                                // Generate fixed code if not already available
+                                if (!issue.fixedCode) {
+                                    issue.fixedCode = this._generateFixedCode(issue);
+                                }
+                                
+                                // Apply the fix
+                                if (issue.fixedCode) {
+                                    this._applyFix(editor, issue, issue.fixedCode);
+                                    
+                                    // Send success message back to webview
+                                    panel.webview.postMessage({
+                                        command: 'fixResult',
+                                        issueId: message.issueId,
+                                        success: true
+                                    });
+                                } else {
+                                    throw new Error('Could not generate a fix for this issue');
+                                }
+                            } catch (error) {
+                                console.error('Error fixing issue:', error);
+                                
+                                // Send error message back to webview
+                                panel.webview.postMessage({
+                                    command: 'fixResult',
+                                    issueId: message.issueId,
+                                    success: false,
+                                    error: error.message || 'Failed to apply fix'
+                                });
+                            }
+                        }
+                    }
+                    break;
             }
-        );
+        });
         
-        // Add custom styles for better heading contrast
-        const customStyles = `
-            <style>
-                .performance-title, .issues-heading, .metrics-heading, 
-                .practices-heading, .optimizations-heading {
-                    color: #FFFFFF;
-                    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
-                    font-weight: bold;
-                }
-                
-                .performance-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 1.5rem;
-                }
-                
-                .score-badge {
-                    font-weight: bold;
-                    padding: 0.5rem 1rem;
-                    border-radius: 1rem;
-                    color: white;
-                }
-            </style>
-        `;
-        
-        panel.webview.html = this._getWebviewContent('Performance Analysis', customStyles + content, true);
+        return panel;
     }
     
     /**
@@ -2946,7 +2882,341 @@ class UILayer {
      * @param {vscode.TextEditor} editor - Current editor
      */
     showPerformanceFixOptions(issue, editor) {
-        vscode.window.showInformationMessage(`Suggested fix: ${issue.suggestion}`);
+        // Create a panel to show the code preview
+        const panel = vscode.window.createWebviewPanel(
+            'performanceFixPreview',
+            'WhiskerCode: Fix Preview',
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            }
+        );
+        
+        // Generate the suggested fix based on the issue type
+        let fixedCode = this._generateFixedCode(issue);
+        if (!fixedCode) {
+            fixedCode = issue.match;
+            vscode.window.showInformationMessage(`No automatic fix available for this issue. Manual suggestion: ${issue.suggestion}`);
+            return;
+        }
+        
+        // Create a diff view for the code comparison
+        const content = `
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    padding: 20px;
+                    color: var(--vscode-foreground);
+                    background-color: var(--vscode-editor-background);
+                }
+                .container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                }
+                .header {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .header h2 {
+                    margin: 0;
+                    color: white;
+                    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
+                }
+                .cat-icon {
+                    font-size: 24px;
+                }
+                .code-comparison {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+                .code-block {
+                    flex: 1;
+                    min-width: 300px;
+                }
+                .code-title {
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                pre {
+                    background-color: var(--vscode-editor-inactiveSelectionBackground);
+                    padding: 15px;
+                    border-radius: 5px;
+                    overflow: auto;
+                    margin: 0;
+                }
+                .fix-description {
+                    background-color: var(--vscode-editor-inactiveSelectionBackground);
+                    padding: 15px;
+                    border-radius: 5px;
+                    margin: 10px 0;
+                }
+                .actions {
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 15px;
+                }
+                button {
+                    padding: 8px 16px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
+                .apply-btn {
+                    background-color: #4CAF50;
+                    color: white;
+                }
+                .cancel-btn {
+                    background-color: #f44336;
+                    color: white;
+                }
+                .highlight {
+                    background-color: rgba(76, 175, 80, 0.3);
+                    font-weight: bold;
+                }
+                .issue-severity {
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    color: white;
+                }
+                .high { background-color: #f44336; }
+                .medium { background-color: #ff9800; }
+                .low { background-color: #4caf50; }
+            </style>
+            <div class="container">
+                <div class="header">
+                    <div class="cat-icon">🐱</div>
+                    <h2>WhiskerCode Fix Preview</h2>
+                    <div class="issue-severity ${issue.severity}">${issue.severity}</div>
+                </div>
+                
+                <div class="fix-description">
+                    <strong>Issue:</strong> ${issue.description}<br>
+                    <strong>Suggestion:</strong> ${issue.suggestion}
+                </div>
+                
+                <div class="code-comparison">
+                    <div class="code-block">
+                        <div class="code-title">Original Code:</div>
+                        <pre><code>${this._escapeHtml(issue.match)}</code></pre>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-title">Suggested Fix:</div>
+                        <pre><code>${this._highlightChanges(this._escapeHtml(issue.match), this._escapeHtml(fixedCode))}</code></pre>
+                    </div>
+                </div>
+                
+                <div class="actions">
+                    <button class="apply-btn" id="apply-fix">Apply Fix</button>
+                    <button class="cancel-btn" id="cancel-fix">Cancel</button>
+                </div>
+            </div>
+            
+            <script>
+                (function() {
+                    const vscode = acquireVsCodeApi();
+                    
+                    document.getElementById('apply-fix').addEventListener('click', () => {
+                        vscode.postMessage({ command: 'applyFix' });
+                    });
+                    
+                    document.getElementById('cancel-fix').addEventListener('click', () => {
+                        vscode.postMessage({ command: 'cancelFix' });
+                    });
+                })();
+            </script>
+        `;
+        
+        panel.webview.html = content;
+        
+        // Handle messages from the webview
+        panel.webview.onDidReceiveMessage(message => {
+            switch (message.command) {
+                case 'applyFix':
+                    this._applyFix(editor, issue, fixedCode);
+                    panel.dispose();
+                    break;
+                case 'cancelFix':
+                    panel.dispose();
+                    break;
+            }
+        });
+    }
+    
+    /**
+     * Generate fixed code based on the issue type
+     * @param {object} issue - The performance issue
+     * @returns {string} The fixed code
+     * @private
+     */
+    _generateFixedCode(issue) {
+        let fixedCode = '';
+        
+        switch (issue.type) {
+            case 'stringConcatenation':
+                // Fix string concatenation in loops
+                if (issue.match.includes('+=') && issue.match.includes('for')) {
+                    fixedCode = issue.match.replace(
+                        /let\s+(\w+)\s*=\s*["'].*;/,
+                        'const parts = [];'
+                    );
+                    
+                    // Replace string concatenation with array push
+                    fixedCode = fixedCode.replace(
+                        /(\w+)\s*\+=\s*(.*);/g,
+                        'parts.push($2);'
+                    );
+                    
+                    // Add join at the end
+                    fixedCode = fixedCode.replace(
+                        /}(?:\s*return\s*(\w+);)?/,
+                        '}\nconst $1 = parts.join("");\nreturn $1;'
+                    );
+                }
+                break;
+                
+            case 'nestedLoops':
+                // Replace nested loops with more efficient structure
+                if (issue.match.includes('for') && issue.match.includes('for')) {
+                    // Use a Map or Set to avoid nested loops
+                    fixedCode = issue.match.replace(
+                        /for\s*\((.*?)\)\s*{\s*for\s*\((.*?)\)\s*{/g,
+                        'const seen = new Set();\nfor ($1) {\n  // Process in a single loop\n  if (!seen.has(key)) {\n    seen.add(key);'
+                    );
+                    
+                    fixedCode = fixedCode.replace(
+                        /}(?:\s*})/,
+                        '  }\n}'
+                    );
+                }
+                break;
+                
+            case 'domOperations':
+                // Fix DOM operations in loops
+                if (issue.match.includes('document') && issue.match.includes('appendChild') && issue.match.includes('for')) {
+                    fixedCode = issue.match.replace(
+                        /for\s*\((.*?)\)\s*{/,
+                        'const fragment = document.createDocumentFragment();\nfor ($1) {'
+                    );
+                    
+                    fixedCode = fixedCode.replace(
+                        /document\.body\.appendChild\((.*)\);/g,
+                        'fragment.appendChild($1);'
+                    );
+                    
+                    fixedCode = fixedCode.replace(
+                        /}(?:\s*})?/,
+                        '}\ndocument.body.appendChild(fragment);'
+                    );
+                }
+                break;
+                
+            case 'asyncAwait':
+                // Fix sequential awaits in loops
+                if (issue.match.includes('for') && issue.match.includes('await')) {
+                    fixedCode = `// Create an array of promises first
+const promises = items.map(async (item) => {
+    // Your async operation here
+    return await someAsyncOperation(item);
+});
+
+// Then await all promises at once
+const results = await Promise.all(promises);`;
+                }
+                break;
+                
+            default:
+                // Simple direct replacement if we have a suggestion code
+                if (issue.fixedCode) {
+                    fixedCode = issue.fixedCode;
+                } else {
+                    return null;
+                }
+        }
+        
+        return fixedCode || null;
+    }
+    
+    /**
+     * Apply the fix to the editor
+     * @param {vscode.TextEditor} editor - The current editor
+     * @param {object} issue - The performance issue
+     * @param {string} fixedCode - The fixed code
+     * @private
+     */
+    _applyFix(editor, issue, fixedCode) {
+        const document = editor.document;
+        const text = document.getText();
+        
+        // Find the position of the issue in the document
+        const issueStart = text.indexOf(issue.match);
+        if (issueStart === -1) {
+            vscode.window.showErrorMessage('Could not locate the issue in the document.');
+            return;
+        }
+        
+        const startPos = document.positionAt(issueStart);
+        const endPos = document.positionAt(issueStart + issue.match.length);
+        const range = new vscode.Range(startPos, endPos);
+        
+        // Apply the edit
+        editor.edit(editBuilder => {
+            editBuilder.replace(range, fixedCode);
+        }).then(success => {
+            if (success) {
+                vscode.window.showInformationMessage('🐱 Fix applied successfully!');
+            } else {
+                vscode.window.showErrorMessage('Failed to apply the fix.');
+            }
+        });
+    }
+    
+    /**
+     * Escape HTML special characters
+     * @param {string} html - The HTML string to escape
+     * @returns {string} The escaped HTML
+     * @private
+     */
+    _escapeHtml(html) {
+        return html
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
+    /**
+     * Highlight changes between original and fixed code
+     * @param {string} original - The original code (HTML escaped)
+     * @param {string} fixed - The fixed code (HTML escaped)
+     * @returns {string} The highlighted HTML
+     * @private
+     */
+    _highlightChanges(original, fixed) {
+        // Simple highlighting approach: wrap new/changed lines in a highlight span
+        // In a real implementation, you would use a proper diff algorithm
+        
+        const originalLines = original.split('\n');
+        const fixedLines = fixed.split('\n');
+        
+        const highlightedLines = fixedLines.map((line, index) => {
+            // If line doesn't exist in original or is different, highlight it
+            if (index >= originalLines.length || line !== originalLines[index]) {
+                return `<span class="highlight">${line}</span>`;
+            }
+            return line;
+        });
+        
+        return highlightedLines.join('\n');
     }
     
     /**
@@ -3253,6 +3523,627 @@ const results = await Promise.all(promises);`;
                 border-top: 1px dashed var(--vscode-editorWidget-border);
             }
         `;
+    }
+    
+    _generatePerformanceHTML(issues, fileName) {
+        // Group issues by severity
+        const highSeverity = issues.filter(issue => issue.severity === 'high');
+        const mediumSeverity = issues.filter(issue => issue.severity === 'medium');
+        const lowSeverity = issues.filter(issue => issue.severity === 'low');
+        
+        // Get cat theme elements
+        const catEmoji = this._catThemeManager ? this._catThemeManager.getCatEmoji() : '🐱';
+        const catAnimation = this._catThemeManager ? this._catThemeManager.getCatAnimation() : '';
+        const catThemeCSS = this._catThemeManager ? this._catThemeManager.getThemeCSS() : '';
+        const backgroundElements = this._catThemeManager ? this._catThemeManager.getBackgroundElements() : '';
+        
+        // Generate performance score
+        const performanceScore = this._calculatePerformanceScore(issues);
+        const scoreColor = performanceScore > 80 ? '#4CAF50' : 
+                          performanceScore > 60 ? '#FFC107' : '#F44336';
+        
+        // Generate HTML
+        return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>WhiskerCode Performance Analysis</title>
+            <style>
+                :root {
+                    --primary-color: var(--vscode-button-background);
+                    --primary-text: var(--vscode-button-foreground);
+                    --panel-bg: var(--vscode-editor-background);
+                    --panel-text: var(--vscode-editor-foreground);
+                    --border-color: var(--vscode-panel-border);
+                    --card-bg: var(--vscode-editor-inactiveSelectionBackground);
+                    --hover-bg: var(--vscode-list-hoverBackground);
+                    --high-severity: #F44336;
+                    --medium-severity: #FFC107;
+                    --low-severity: #4CAF50;
+                    --animation-duration: 800ms;
+                    --heading-color: #FFFFFF;
+                }
+                
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                    padding: 20px;
+                    color: var(--panel-text);
+                    background-color: var(--panel-bg);
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: opacity var(--animation-duration) ease, transform var(--animation-duration) ease;
+                }
+                
+                body.loaded {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                
+                h1, h2, h3 {
+                    color: var(--heading-color);
+                    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
+                    font-weight: bold;
+                }
+                
+                .cat-container {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+                
+                .cat-image {
+                    font-size: 50px;
+                    margin-right: 20px;
+                }
+                
+                .performance-score {
+                    position: relative;
+                    width: 100px;
+                    height: 100px;
+                    margin: 20px auto;
+                }
+                
+                .score-circle {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 50%;
+                    background: conic-gradient(
+                        
+                        var(--card-bg) 0deg
+                    );
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                }
+                
+                .score-circle::before {
+                    content: '';
+                    position: absolute;
+                    width: 80%;
+                    height: 80%;
+                    border-radius: 50%;
+                    background: var(--panel-bg);
+                }
+                
+                .score-value {
+                    position: relative;
+                    font-size: 24px;
+                    font-weight: bold;
+                    z-index: 1;
+                }
+                
+                .summary-box {
+                    background-color: var(--card-bg);
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 20px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+                
+                .summary-box h3 {
+                    margin-top: 0;
+                    font-size: 18px;
+                }
+                
+                .issue-card {
+                    background-color: var(--card-bg);
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 15px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    border-left: 4px solid;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    opacity: 0;
+                    animation: slide-in 0.4s ease forwards;
+                    position: relative;
+                }
+                
+                .issue-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+                }
+                
+                .issue-card.high {
+                    border-left-color: var(--high-severity);
+                }
+                
+                .issue-card.medium {
+                    border-left-color: var(--medium-severity);
+                }
+                
+                .issue-card.low {
+                    border-left-color: var(--low-severity);
+                }
+                
+                .severity-badge {
+                    display: inline-block;
+                    padding: 3px 8px;
+                    border-radius: 12px;
+                    color: white;
+                    font-size: 12px;
+                    margin-bottom: 8px;
+                }
+                
+                .severity-badge.high {
+                    background-color: var(--high-severity);
+                }
+                
+                .severity-badge.medium {
+                    background-color: var(--medium-severity);
+                }
+                
+                .severity-badge.low {
+                    background-color: var(--low-severity);
+                }
+                
+                .issue-title {
+                    font-size: 16px;
+                    margin: 8px 0;
+                }
+                
+                .code-context {
+                    background-color: var(--panel-bg);
+                    padding: 10px;
+                    border-radius: 4px;
+                    font-family: 'Courier New', Courier, monospace;
+                    margin: 10px 0;
+                    white-space: pre;
+                    overflow-x: auto;
+                }
+                
+                .suggestion {
+                    margin-top: 10px;
+                    font-style: italic;
+                }
+                
+                .section-tabs {
+                    display: flex;
+                    margin-bottom: 20px;
+                }
+                
+                .tab {
+                    padding: 10px 15px;
+                    background-color: var(--card-bg);
+                    border: none;
+                    cursor: pointer;
+                    color: var(--panel-text);
+                    transition: background-color 0.2s ease;
+                    font-weight: bold;
+                }
+                
+                .tab.active {
+                    background-color: var(--primary-color);
+                    color: var(--primary-text);
+                }
+                
+                .tab-content {
+                    display: none;
+                }
+                
+                .tab-content.active {
+                    display: block;
+                }
+                
+                .fix-button {
+                    position: absolute;
+                    top: 15px;
+                    right: 15px;
+                    background-color: var(--primary-color);
+                    color: var(--primary-text);
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: background-color 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                }
+                
+                .fix-button:hover {
+                    opacity: 0.9;
+                    transform: scale(1.05);
+                }
+                
+                .fix-button:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                
+                .fix-icon {
+                    font-size: 16px;
+                }
+                
+                .issue-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    padding-right: 100px; /* Make room for the fix button */
+                }
+                
+                @keyframes slide-in {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+                
+                .hidden {
+                    display: none;
+                }
+                
+                .success-message {
+                    background-color: rgba(76, 175, 80, 0.2);
+                    border-left: 4px solid #4CAF50;
+                    padding: 10px;
+                    margin: 10px 0;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    display: none;
+                }
+                
+                .error-message {
+                    background-color: rgba(244, 67, 54, 0.2);
+                    border-left: 4px solid #F44336;
+                    padding: 10px;
+                    margin: 10px 0;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    display: none;
+                }
+                
+                .fixing-spinner {
+                    display: inline-block;
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-radius: 50%;
+                    border-top-color: white;
+                    animation: spin 1s ease-in-out infinite;
+                    margin-right: 5px;
+                }
+                
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                
+            </style>
+        </head>
+        <body>
+            ${backgroundElements}
+            
+            <div class="cat-container">
+                <div class="cat-image">${catEmoji}</div>
+                <div>
+                    <h1>Performance Analysis</h1>
+                    <p>File: ${fileName}</p>
+                </div>
+            </div>
+            
+            <div class="performance-score">
+                <div class="score-circle">
+                    <div class="score-value">${performanceScore}</div>
+                </div>
+            </div>
+            
+            <div class="summary-box">
+                <h3>Performance Summary</h3>
+                <p>Found ${issues.length} potential performance issues:</p>
+                <ul>
+                    <li>${highSeverity.length} high severity issues</li>
+                    <li>${mediumSeverity.length} medium severity issues</li>
+                    <li>${lowSeverity.length} low severity issues</li>
+                </ul>
+            </div>
+            
+            <div id="feedback-container">
+                <div id="success-message" class="success-message">
+                    <span class="fix-icon">✓</span> Fix applied successfully!
+                </div>
+                <div id="error-message" class="error-message">
+                    <span class="fix-icon">⚠️</span> <span id="error-text">Failed to apply fix.</span>
+                </div>
+            </div>
+            
+            <div class="section-tabs">
+                <button class="tab active" data-tab="all">All Issues (${issues.length})</button>
+                <button class="tab" data-tab="high">High Severity (${highSeverity.length})</button>
+                <button class="tab" data-tab="medium">Medium Severity (${mediumSeverity.length})</button>
+                <button class="tab" data-tab="low">Low Severity (${lowSeverity.length})</button>
+            </div>
+            
+            <div id="all" class="tab-content active">
+                ${this._generateIssueCardsWithFixButtons(issues)}
+            </div>
+            
+            <div id="high" class="tab-content">
+                ${this._generateIssueCardsWithFixButtons(highSeverity)}
+            </div>
+            
+            <div id="medium" class="tab-content">
+                ${this._generateIssueCardsWithFixButtons(mediumSeverity)}
+            </div>
+            
+            <div id="low" class="tab-content">
+                ${this._generateIssueCardsWithFixButtons(lowSeverity)}
+            </div>
+            
+            <script>
+                (function() {
+                    // Initialize
+                    const vscode = acquireVsCodeApi();
+                    let animationDelay = 0.1;
+                    
+                    // Apply animations after small delay
+                    setTimeout(() => {
+                        document.body.classList.add('loaded');
+                    }, 100);
+                    
+                    // Set animation delay for each card
+                    document.querySelectorAll('.issue-card').forEach((card, index) => {
+                        card.style.animationDelay = (animationDelay + index * 0.05) + 's';
+                    });
+                    
+                    // Add click handlers to tabs
+                    document.querySelectorAll('.tab').forEach(tab => {
+                        tab.addEventListener('click', () => {
+                            // Hide all tab contents
+                            document.querySelectorAll('.tab-content').forEach(content => {
+                                content.classList.remove('active');
+                            });
+                            
+                            // Deactivate all tabs
+                            document.querySelectorAll('.tab').forEach(t => {
+                                t.classList.remove('active');
+                            });
+                            
+                            // Activate clicked tab
+                            tab.classList.add('active');
+                            
+                            // Show corresponding content
+                            const tabId = tab.getAttribute('data-tab');
+                            document.getElementById(tabId).classList.add('active');
+                            
+                            // Reset animation delay for newly visible cards
+                            document.querySelectorAll('#' + tabId + ' .issue-card').forEach((card, index) => {
+                                card.style.animationDelay = (0.1 + index * 0.05) + 's';
+                            });
+                        });
+                    });
+                    
+                    // Add click handlers to issue cards
+                    document.querySelectorAll('.issue-card').forEach(card => {
+                        card.addEventListener('click', (event) => {
+                            // Do not handle clicks on the fix button
+                            if (event.target.closest('.fix-button')) {
+                                return;
+                            }
+                            
+                            const lineNumber = card.getAttribute('data-line');
+                            if (lineNumber) {
+                                vscode.postMessage({
+                                    command: 'showIssueLocation',
+                                    lineNumber: parseInt(lineNumber)
+                                });
+                            }
+                        });
+                    });
+                    
+                    // Add click handlers to fix buttons
+                    document.querySelectorAll('.fix-button').forEach(button => {
+                        button.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            
+                            const issueId = button.getAttribute('data-issue');
+                            const issueCard = document.querySelector(\`.issue-card[data-issue="\${issueId}"]\`);
+                            
+                            // Show fixing state
+                            button.innerHTML = '<span class="fixing-spinner"></span> Fixing...';
+                            button.disabled = true;
+                            
+                            // Hide any previous messages
+                            document.getElementById('success-message').style.display = 'none';
+                            document.getElementById('error-message').style.display = 'none';
+                            
+                            vscode.postMessage({
+                                command: 'fixIssue',
+                                issueId: issueId
+                            });
+                        });
+                    });
+                    
+                    // Handle messages from extension
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        
+                        if (message.command === 'fixResult') {
+                            const { issueId, success, error } = message;
+                            const button = document.querySelector(\`.fix-button[data-issue="\${issueId}"]\`);
+                            const issueCard = document.querySelector(\`.issue-card[data-issue="\${issueId}"]\`);
+                            
+                            if (success) {
+                                // Show success message
+                                const successMessage = document.getElementById('success-message');
+                                successMessage.style.display = 'block';
+                                
+                                // Reset button state
+                                button.innerHTML = '✓ Fixed';
+                                button.disabled = true;
+                                button.style.backgroundColor = '#4CAF50';
+                                
+                                // Scroll to message
+                                successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                
+                                // Hide success message after 3 seconds
+                                setTimeout(() => {
+                                    successMessage.style.display = 'none';
+                                }, 3000);
+                                
+                                // Dim the card to show it's been fixed
+                                issueCard.style.opacity = '0.7';
+                                issueCard.style.borderLeftColor = '#4CAF50';
+                            } else {
+                                // Show error message
+                                const errorMessage = document.getElementById('error-message');
+                                const errorText = document.getElementById('error-text');
+                                errorText.textContent = error || 'Failed to apply fix.';
+                                errorMessage.style.display = 'block';
+                                
+                                // Reset button state
+                                button.innerHTML = '🐱 Fix Issue';
+                                button.disabled = false;
+                                
+                                // Scroll to message
+                                errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                
+                                // Hide error message after 5 seconds
+                                setTimeout(() => {
+                                    errorMessage.style.display = 'none';
+                                }, 5000);
+                            }
+                        }
+                    });
+                })();
+            </script>
+        </body>
+        </html>
+        `;
+    }
+    
+    /**
+     * Generate issue cards HTML with fix buttons
+     * @param {object[]} issues - Array of performance issues
+     * @returns {string} HTML content
+     */
+    _generateIssueCardsWithFixButtons(issues) {
+        if (issues.length === 0) {
+            return `<p>No issues found in this category.</p>`;
+        }
+        
+        let html = '';
+        
+        issues.forEach((issue, index) => {
+            const hasFixAvailable = this._hasFixAvailable(issue);
+            
+            html += `
+                <div class="issue-card ${issue.severity}" data-line="${issue.lineNumber || ''}" data-issue="${issue.id || index}">
+                    <div class="issue-header">
+                        <div>
+                            <span class="severity-badge ${issue.severity}">${issue.severity}</span>
+                            <h4 class="issue-title">${issue.description}</h4>
+                        </div>
+                    </div>
+                    <div class="issue-details">
+                        <pre class="code-context"><code>${issue.context || issue.match || ''}</code></pre>
+                        <p class="suggestion">${issue.suggestion}</p>
+                        ${issue.lineNumber ? `<p>Line: ${issue.lineNumber}</p>` : ''}
+                    </div>
+                    <button class="fix-button" data-issue="${issue.id || index}" ${!hasFixAvailable ? 'disabled' : ''}>
+                        <span class="fix-icon">🐱</span> Fix Issue
+                    </button>
+                </div>
+            `;
+        });
+        
+        return html;
+    }
+    
+    /**
+     * Check if a fix is available for the issue
+     * @param {object} issue - The performance issue
+     * @returns {boolean} Whether a fix is available
+     */
+    _hasFixAvailable(issue) {
+        // If there's a fixedCode property, a fix is available
+        if (issue.fixedCode) return true;
+        
+        // Check if we can generate a fix based on issue type
+        const issueTypes = ['stringConcatenation', 'nestedLoops', 'domOperations', 'asyncAwait'];
+        
+        if (!issue.type) return false;
+        
+        if (issueTypes.includes(issue.type)) {
+            // Specific checks for certain issue types
+            if (issue.type === 'stringConcatenation' && issue.match && 
+                issue.match.includes('+=') && issue.match.includes('for')) {
+                return true;
+            }
+            
+            if (issue.type === 'nestedLoops' && issue.match && 
+                issue.match.includes('for') && issue.match.match(/for\s*\(.*\)\s*{\s*for/)) {
+                return true;
+            }
+            
+            if (issue.type === 'domOperations' && issue.match && 
+                issue.match.includes('document') && issue.match.includes('appendChild') && 
+                issue.match.includes('for')) {
+                return true;
+            }
+            
+            if (issue.type === 'asyncAwait' && issue.match && 
+                issue.match.includes('for') && issue.match.includes('await')) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Calculate performance score based on issues
+     * @param {Array} issues - Performance issues
+     * @returns {number} - Performance score (0-100)
+     * @private
+     */
+    _calculatePerformanceScore(issues) {
+        if (!issues || issues.length === 0) {
+            return 100;
+        }
+        
+        // Count issues by severity
+        const highCount = issues.filter(i => i.severity === 'high').length;
+        const mediumCount = issues.filter(i => i.severity === 'medium').length;
+        const lowCount = issues.filter(i => i.severity === 'low').length;
+        
+        // Calculate weighted score
+        // High issues reduce score by 15 points each
+        // Medium issues reduce score by 8 points each
+        // Low issues reduce score by 3 points each
+        const deduction = (highCount * 15) + (mediumCount * 8) + (lowCount * 3);
+        
+        // Ensure score doesn't go below 0
+        const score = Math.max(0, 100 - deduction);
+        
+        // Return rounded score
+        return Math.round(score);
     }
 }
 

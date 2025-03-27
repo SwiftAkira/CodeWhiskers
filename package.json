@@ -2,7 +2,7 @@
   "name": "whiskercode",
   "displayName": "WhiskerCode",
   "description": "Understanding unfamiliar code through intuitive explanations with a kitten-themed UI",
-  "version": "1.2.1",
+  "version": "1.2.4",
   "publisher": "Swift123",
   "engines": {
     "vscode": "^1.60.0"
@@ -25,47 +25,47 @@
     "commands": [
       {
         "command": "whiskercode.explainCode",
-        "title": "📝 WhiskerCode: Explain Selected Code",
+        "title": "🐱 WhiskerCode: Explain Selected Code",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.traceVariable",
-        "title": "🔍 WhiskerCode: Trace Variable Usage",
+        "title": "🐱 WhiskerCode: Trace Variable Usage",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.suggestDocumentation",
-        "title": "📚 WhiskerCode: Suggest Documentation",
+        "title": "🐱 WhiskerCode: Suggest Documentation",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.analyzeFunctions",
-        "title": "⚡ WhiskerCode: Analyze Functions",
+        "title": "🐱 WhiskerCode: Analyze Functions",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.openSettings",
-        "title": "⚙️ WhiskerCode: Open Settings",
+        "title": "🐱 WhiskerCode: Open Settings",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.analyzeComplexity",
-        "title": "📊 WhiskerCode: Analyze Code Complexity",
+        "title": "🐱 WhiskerCode: Analyze Code Complexity",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.visualizeDependencies",
-        "title": "🔗 WhiskerCode: Visualize Function Dependencies",
+        "title": "🐱 WhiskerCode: Visualize Function Dependencies",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.changeCatTheme",
-        "title": "🎨 WhiskerCode: Change Cat Theme",
+        "title": "🐱 WhiskerCode: Change Cat Theme",
         "category": "WhiskerCode"
       },
       {
         "command": "whiskercode.detectPerformance",
-        "title": "⚡ WhiskerCode: Detect Performance Hotspots",
+        "title": "🐱 WhiskerCode: Detect Performance Hotspots",
         "category": "WhiskerCode"
       }
     ],
@@ -126,27 +126,27 @@
       "editor/title": [
         {
           "command": "whiskercode.suggestDocumentation",
-          "group": "navigation",
+          "group": "navigation@10",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
           "command": "whiskercode.analyzeFunctions",
-          "group": "navigation",
+          "group": "9_cutcopypaste@1",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
           "command": "whiskercode.analyzeComplexity",
-          "group": "navigation",
+          "group": "9_cutcopypaste@2",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
           "command": "whiskercode.visualizeDependencies",
-          "group": "navigation",
+          "group": "9_cutcopypaste@3",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
           "command": "whiskercode.detectPerformance",
-          "group": "navigation",
+          "group": "9_cutcopypaste@4",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == javascriptreact || editorLangId == typescriptreact"
         }
       ],
@@ -348,12 +348,12 @@
         "actions": [
           {
             "kind": "whiskercode.fixPerformanceIssue",
-            "title": "Fix performance issue with WhiskerCode",
+            "title": "🐱 Fix performance issue with WhiskerCode",
             "description": "Apply recommended performance optimization"
           },
           {
             "kind": "whiskercode.refactorComplexCode",
-            "title": "Refactor complex code with WhiskerCode",
+            "title": "🐱 Refactor complex code with WhiskerCode",
             "description": "Apply suggested code simplification"
           }
         ]

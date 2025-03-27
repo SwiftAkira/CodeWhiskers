@@ -53,7 +53,7 @@ class WhiskerCodeLensProvider {
                     
                     // Create code lens for complexity metrics
                     const complexityLens = new vscode.CodeLens(range, {
-                        title: `📊 Complexity: ${parseResult.complexity.cognitiveComplexity}`,
+                        title: `🐱 Complexity: ${parseResult.complexity.cognitiveComplexity}`,
                         command: 'whiskercode.showCodeMetrics',
                         arguments: [document.uri, func.line, 'complexity']
                     });
@@ -67,7 +67,7 @@ class WhiskerCodeLensProvider {
                     if (perfAnalysis.issues && perfAnalysis.issues.length > 0) {
                         // Create code lens for performance issues
                         const perfLens = new vscode.CodeLens(range, {
-                            title: `⚡ Performance: ${perfAnalysis.issues.length} issue${perfAnalysis.issues.length > 1 ? 's' : ''}`,
+                            title: `🐱 Performance: ${perfAnalysis.issues.length} issue${perfAnalysis.issues.length > 1 ? 's' : ''}`,
                             command: 'whiskercode.showCodeMetrics',
                             arguments: [document.uri, func.line, 'performance']
                         });
@@ -81,7 +81,7 @@ class WhiskerCodeLensProvider {
                     if (refactorOpportunities && refactorOpportunities.length > 0) {
                         // Create code lens for refactoring opportunities
                         const refactorLens = new vscode.CodeLens(range, {
-                            title: `♻️ Refactor: ${refactorOpportunities.length} suggestion${refactorOpportunities.length > 1 ? 's' : ''}`,
+                            title: `🐱 Refactor: ${refactorOpportunities.length} suggestion${refactorOpportunities.length > 1 ? 's' : ''}`,
                             command: 'whiskercode.showCodeMetrics',
                             arguments: [document.uri, func.line, 'refactor']
                         });
@@ -100,7 +100,7 @@ class WhiskerCodeLensProvider {
                     
                     // Create code lens for class analysis
                     const classLens = new vscode.CodeLens(range, {
-                        title: `🔍 Analyze class`,
+                        title: `🐱 Analyze class`,
                         command: 'whiskercode.showCodeMetrics',
                         arguments: [document.uri, cls.line, 'class']
                     });
@@ -123,7 +123,7 @@ class WhiskerCodeLensProvider {
                         
                         // Create code lens for React component analysis
                         const reactLens = new vscode.CodeLens(range, {
-                            title: `⚛️ React component insights`,
+                            title: `🐱 React component insights`,
                             command: 'whiskercode.showCodeMetrics',
                             arguments: [document.uri, componentMatch.line, 'react']
                         });
@@ -195,7 +195,7 @@ class WhiskerCodeActionProvider {
                     if (issue.suggestion && issue.match) {
                         // Create code action for performance issue
                         const action = new vscode.CodeAction(
-                            `🔧 Fix: ${issue.description}`,
+                            `🐱 Fix: ${issue.description}`,
                             vscode.CodeActionKind.QuickFix
                         );
                         
@@ -220,7 +220,7 @@ class WhiskerCodeActionProvider {
                     if (opportunity.suggestion) {
                         // Create code action for refactoring opportunity
                         const action = new vscode.CodeAction(
-                            `♻️ Refactor: ${opportunity.description}`,
+                            `🐱 Refactor: ${opportunity.description}`,
                             vscode.CodeActionKind.Refactor
                         );
                         

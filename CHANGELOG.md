@@ -2,6 +2,42 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.2.4] - 2024-03-27
+
+### Added
+- Direct issue fixing from Performance Analysis panel:
+  - Added "Fix Issue" buttons to each performance issue card
+  - One-click fixing without returning to editor
+  - Visual feedback with success/error messages
+  - Real-time status updates on fixed issues
+  - Sorting and filtering of issues by severity
+
+## [1.2.3] - 2024-03-27
+
+### Added
+- Enhanced code fix experience:
+  - Added preview window for suggested code changes
+  - Green highlighting for modified code sections
+  - Confirmation dialog before applying changes
+  - Option to cancel fixes if not desired
+  - Detailed side-by-side comparison of original and fixed code
+- Improved user feedback:
+  - Success and error messages for fix operations
+  - Clear visualization of code differences
+  - Severity indicators for performance issues
+
+## [1.2.2] - 2024-03-27
+
+### Changed
+- Enhanced visual identity with cat icons:
+  - Added cat emoji (🐱) to all command titles
+  - Added cat icons to Code Lens displays for better visibility
+  - Added cat emoji to Quick Fix action titles
+  - Improved distinction from other extensions in menus and action lists
+- UI improvements:
+  - Moved editor title commands to dropdown menus to reduce clutter
+  - Better organization of commands in editor UI
+
 ## [1.2.1] - 2024-03-27
 
 ### Fixed

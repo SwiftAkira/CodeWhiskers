@@ -177,7 +177,7 @@ function startInterval() {
 // React-like component example (for testing React patterns)
 function UserProfile(props) {
   // Missing React.memo() for optimization
-  const [state, setState] = useState({ 
+  const [, setState] = setState({ 
     name: props.name, 
     email: props.email,
     preferences: props.preferences
@@ -205,7 +205,7 @@ function ProductList({ products }) {
     <div>
       {products.map(product => (
         <div key={product.id}>
-          <ProductItem 
+          <ProductList 
             product={product} 
             formatter={new PriceFormatter('USD')} // New object during render
             options={{ showDiscount: true }}     // New object during render
