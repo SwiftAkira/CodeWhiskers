@@ -2,6 +2,8 @@
 
 WhiskerCode is your feline companion for code understanding and optimization. This VS Code extension brings intuitive code analysis and explanation features with a delightful kitten-themed UI.
 
+> **IMPORTANT DISCLAIMER:** WhiskerCode operates completely locally on your machine and **does not use or require any cloud-based AI services**. All code analysis, explanations, and features are powered by built-in algorithms that run entirely within VS Code. Your code never leaves your system, ensuring complete privacy and security.
+
 ## ✨ Features
 
 ### 🔍 Code Understanding
