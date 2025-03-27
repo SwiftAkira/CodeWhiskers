@@ -11,6 +11,7 @@ class UILayer {
         this.hoverProviders = [];
         this.sidebarProviders = {};
         this.initialized = false;
+        this._catThemeManager = null;
         
         // Set default settings before trying to load
         this.settings = {
@@ -38,6 +39,14 @@ class UILayer {
         } catch (error) {
             console.error('Error during UILayer construction:', error);
         }
+    }
+    
+    /**
+     * Set the cat theme manager
+     * @param {CatThemeManager} manager - The cat theme manager
+     */
+    setCatThemeManager(manager) {
+        this._catThemeManager = manager;
     }
     
     /**
