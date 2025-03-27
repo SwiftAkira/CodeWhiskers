@@ -33,7 +33,7 @@
       },
       {
         "command": "codewhiskers.traceVariable",
-        "title": "CodeWhiskers: Trace Variable",
+        "title": "CodeWhiskers: Trace Variable Usage",
         "icon": {
           "light": "resources/light/trace.svg",
           "dark": "resources/dark/trace.svg"
@@ -49,7 +49,7 @@
       },
       {
         "command": "codewhiskers.analyzeFunctions",
-        "title": "CodeWhiskers: Analyze Function Behavior",
+        "title": "CodeWhiskers: Analyze Functions",
         "icon": {
           "light": "resources/light/analyze.svg",
           "dark": "resources/dark/analyze.svg"
@@ -61,6 +61,22 @@
         "icon": {
           "light": "resources/light/settings.svg",
           "dark": "resources/dark/settings.svg"
+        }
+      },
+      {
+        "command": "codewhiskers.analyzeComplexity",
+        "title": "CodeWhiskers: Analyze Code Complexity",
+        "icon": {
+          "light": "resources/light/analyze.svg",
+          "dark": "resources/dark/analyze.svg"
+        }
+      },
+      {
+        "command": "codewhiskers.visualizeDependencies",
+        "title": "CodeWhiskers: Visualize Function Dependencies",
+        "icon": {
+          "light": "resources/light/trace.svg",
+          "dark": "resources/dark/trace.svg"
         }
       }
     ],
@@ -75,6 +91,16 @@
           "when": "editorHasSelection && editorTextFocus",
           "command": "codewhiskers.traceVariable",
           "group": "CodeWhiskers"
+        },
+        {
+          "when": "editorTextFocus",
+          "command": "codewhiskers.analyzeComplexity",
+          "group": "CodeWhiskers"
+        },
+        {
+          "when": "editorTextFocus",
+          "command": "codewhiskers.visualizeDependencies",
+          "group": "CodeWhiskers"
         }
       ],
       "editor/title": [
@@ -85,6 +111,16 @@
         },
         {
           "command": "codewhiskers.analyzeFunctions",
+          "group": "navigation",
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
+        },
+        {
+          "command": "codewhiskers.analyzeComplexity",
+          "group": "navigation",
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
+        },
+        {
+          "command": "codewhiskers.visualizeDependencies",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         }

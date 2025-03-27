@@ -129,12 +129,29 @@ class Parser {
     /**
      * Find all references to a variable in a document
      * @param {string} variableName - Name of variable to trace
-     * @param {vscode.TextDocument} document - Document to search in
+     * @param {string|vscode.TextDocument} documentOrText - Document or text content to search in
+     * @param {string} language - Language of the code
      * @returns {Array<object>} List of variable occurrences
      */
-    traceVariable(variableName, document) {
-        const text = document.getText();
-        const language = document.languageId;
+    traceVariable(variableName, documentOrText, language) {
+        let text;
+        
+        // Handle either document object or direct text input
+        if (typeof documentOrText === 'string') {
+            text = documentOrText;
+        } else if (documentOrText && typeof documentOrText.getText === 'function') {
+            text = documentOrText.getText();
+            if (!language) {
+                language = documentOrText.languageId;
+            }
+        } else {
+            throw new Error('Invalid document or text provided');
+        }
+
+        if (!language) {
+            throw new Error('Language must be specified');
+        }
+        
         let pattern;
         
         // Use language-specific patterns for variable detection
@@ -150,20 +167,33 @@ class Parser {
         }
         
         const occurrences = [];
+        const lines = text.split('\n');
         
         let match;
         while ((match = pattern.exec(text)) !== null) {
-            const pos = document.positionAt(match.index);
-            const line = document.lineAt(pos.line);
+            // Calculate line and character position
+            let lineIndex = 0;
+            let charPosition = match.index;
+            
+            // Find the line number and character position
+            for (let i = 0; i < lines.length; i++) {
+                if (charPosition <= lines[i].length) {
+                    lineIndex = i;
+                    break;
+                }
+                // +1 for the newline character
+                charPosition -= (lines[i].length + 1);
+            }
+            
+            const lineText = lines[lineIndex];
             
             occurrences.push({
-                range: new vscode.Range(
-                    pos, 
-                    document.positionAt(match.index + variableName.length)
-                ),
-                lineText: line.text,
-                isDefinition: this._isDefinition(line.text, match.index - line.range.start.character, variableName, language),
-                position: pos
+                position: {
+                    line: lineIndex,
+                    character: charPosition
+                },
+                lineText: lineText,
+                isDefinition: this._isDefinition(lineText, charPosition, variableName, language)
             });
         }
         
@@ -172,12 +202,29 @@ class Parser {
 
     /**
      * Find sections of code that lack proper documentation
-     * @param {vscode.TextDocument} document - Document to analyze
+     * @param {string|vscode.TextDocument} documentOrText - Document or text content to analyze
+     * @param {string} language - Language of the code
      * @returns {Array<object>} List of undocumented code sections
      */
-    findUndocumentedCode(document) {
-        const text = document.getText();
-        const language = document.languageId;
+    findUndocumentedCode(documentOrText, language) {
+        let text;
+        
+        // Handle either document object or direct text input
+        if (typeof documentOrText === 'string') {
+            text = documentOrText;
+        } else if (documentOrText && typeof documentOrText.getText === 'function') {
+            text = documentOrText.getText();
+            if (!language) {
+                language = documentOrText.languageId;
+            }
+        } else {
+            throw new Error('Invalid document or text provided');
+        }
+
+        if (!language) {
+            throw new Error('Language must be specified');
+        }
+        
         const lines = text.split('\n');
         const undocumented = [];
         
@@ -207,7 +254,7 @@ class Parser {
                 
                 if (!isDocumented) {
                     undocumented.push({
-                        range: document.lineAt(lineIndex).range,
+                        line: lineIndex,
                         text: line,
                         type: 'function',
                         suggestion: this._generateDocTemplate(line, language)
@@ -222,12 +269,28 @@ class Parser {
 
     /**
      * Find all functions in a document
-     * @param {vscode.TextDocument} document - Document to analyze
+     * @param {string|vscode.TextDocument} documentOrText - Document or text content to analyze
+     * @param {string} language - Language of the code
      * @returns {Array<object>} List of functions with metadata
      */
-    findFunctions(document) {
-        const text = document.getText();
-        const language = document.languageId;
+    findFunctions(documentOrText, language) {
+        let text;
+        
+        // Handle either document object or direct text input
+        if (typeof documentOrText === 'string') {
+            text = documentOrText;
+        } else if (documentOrText && typeof documentOrText.getText === 'function') {
+            text = documentOrText.getText();
+            if (!language) {
+                language = documentOrText.languageId;
+            }
+        } else {
+            throw new Error('Invalid document or text provided');
+        }
+
+        if (!language) {
+            throw new Error('Language must be specified');
+        }
         
         // Get language-specific function pattern
         const patterns = this.languagePatterns[language] || this.languagePatterns.javascript;
@@ -255,14 +318,13 @@ class Parser {
                 params = match[2] || match[4];
             }
             
-            const pos = document.positionAt(match.index);
-            
             // Get function body (with language-specific logic)
             let bodyStart, bodyEnd;
+            const matchIndex = match.index;
             
             if (language === 'python') {
                 // Python uses indentation, so we need to find the indented block
-                bodyStart = text.indexOf(':', match.index) + 1;
+                bodyStart = text.indexOf(':', matchIndex) + 1;
                 
                 // Find the end of the indented block
                 const indentationMatch = /^(\s+)/m.exec(text.substring(bodyStart));
@@ -280,10 +342,10 @@ class Parser {
                 // For languages with braces
                 let braceCount = 0;
                 let foundOpen = false;
-                bodyStart = match.index;
+                bodyStart = matchIndex;
                 bodyEnd = text.length;
                 
-                for (let i = match.index; i < text.length; i++) {
+                for (let i = matchIndex; i < text.length; i++) {
                     if (text[i] === '{') {
                         if (!foundOpen) {
                             foundOpen = true;
@@ -302,16 +364,29 @@ class Parser {
             
             const body = text.substring(bodyStart, bodyEnd).trim();
             
+            // Calculate line numbers for the function
+            const textBeforeMatch = text.substring(0, matchIndex);
+            const startLine = (textBeforeMatch.match(/\n/g) || []).length;
+            const textBeforeEnd = text.substring(0, bodyEnd);
+            const endLine = (textBeforeEnd.match(/\n/g) || []).length;
+            
             functions.push({
                 name,
                 params: this._parseParams(params, language),
                 body,
-                position: pos,
-                range: new vscode.Range(
-                    pos,
-                    document.positionAt(bodyEnd + 1)
-                ),
-                language: language
+                position: {
+                    line: startLine,
+                    character: matchIndex - textBeforeMatch.lastIndexOf('\n') - 1
+                },
+                range: {
+                    start: matchIndex,
+                    end: bodyEnd
+                },
+                lineRange: {
+                    start: startLine,
+                    end: endLine
+                },
+                language
             });
         }
         
@@ -770,8 +845,290 @@ class Parser {
     _escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
+
+    /**
+     * Calculate cyclomatic complexity for a function
+     * @param {string} code - Function code
+     * @param {string} language - Programming language
+     * @returns {object} Complexity metrics
+     */
+    calculateCyclomaticComplexity(code, language) {
+        if (!this.supportedLanguages.includes(language)) {
+            throw new Error(`Language '${language}' is not currently supported`);
+        }
+
+        let complexity = 1; // Base complexity starts at 1
+        let lines = code.split('\n');
+        let lineCount = lines.length;
+        
+        // Get language-specific patterns
+        const patterns = this.languagePatterns[language] || this.languagePatterns.javascript;
+        
+        // Count decision points based on language
+        const decisionPoints = this._countDecisionPoints(code, language);
+        complexity += decisionPoints.total;
+        
+        // Calculate cognitive complexity factors
+        const nestingLevel = this._calculateNestingLevel(code, language);
+        const numberOfParameters = this._countParameters(code, language);
+        
+        return {
+            cyclomaticComplexity: complexity,
+            lineCount: lineCount,
+            decisionPoints: decisionPoints,
+            nestingLevel: nestingLevel,
+            parameterCount: numberOfParameters,
+            complexityLevel: this._determineComplexityLevel(complexity)
+        };
+    }
+    
+    /**
+     * Analyze all functions in a file and compute complexity metrics
+     * @param {string} code - File content
+     * @param {string} language - Programming language
+     * @returns {object[]} Array of function analyses
+     */
+    analyzeFunctionComplexity(code, language) {
+        if (!this.supportedLanguages.includes(language)) {
+            throw new Error(`Language '${language}' is not currently supported`);
+        }
+        
+        const functions = this.findFunctions(code, language);
+        const functionAnalyses = [];
+        
+        for (const func of functions) {
+            // Extract function code
+            const startLine = code.substring(0, func.range.start).split('\n').length - 1;
+            const endLine = code.substring(0, func.range.end).split('\n').length - 1;
+            const functionCode = code.substring(func.range.start, func.range.end);
+            
+            // Calculate metrics
+            const complexity = this.calculateCyclomaticComplexity(functionCode, language);
+            
+            functionAnalyses.push({
+                name: func.name,
+                lineRange: { start: startLine, end: endLine },
+                lineCount: complexity.lineCount,
+                cyclomaticComplexity: complexity.cyclomaticComplexity,
+                nestingLevel: complexity.nestingLevel,
+                parameterCount: complexity.parameterCount,
+                complexityLevel: complexity.complexityLevel,
+                decisionPoints: complexity.decisionPoints
+            });
+        }
+        
+        return functionAnalyses;
+    }
+    
+    /**
+     * Analyze dependencies between functions in code
+     * @param {string} code - File content
+     * @param {string} language - Programming language
+     * @returns {object} Dependency graph data
+     */
+    analyzeDependencies(code, language) {
+        if (!this.supportedLanguages.includes(language)) {
+            throw new Error(`Language '${language}' is not currently supported`);
+        }
+
+        const functions = this.findFunctions(code, language);
+        const dependencies = {};
+        
+        // Initialize dependency object for each function
+        for (const func of functions) {
+            dependencies[func.name] = {
+                calls: [],
+                calledBy: []
+            };
+        }
+        
+        // Find call relationships
+        for (const caller of functions) {
+            const callerCode = code.substring(caller.range.start, caller.range.end);
+            
+            for (const callee of functions) {
+                // Skip self references
+                if (caller.name === callee.name) continue;
+                
+                // Check if caller calls callee
+                const calleePattern = new RegExp(`\\b${callee.name}\\s*\\(`, 'g');
+                if (calleePattern.test(callerCode)) {
+                    dependencies[caller.name].calls.push(callee.name);
+                    dependencies[callee.name].calledBy.push(caller.name);
+                }
+            }
+        }
+        
+        // Generate nodes and links for visualization
+        const nodes = functions.map(func => ({
+            id: func.name,
+            complexity: this.calculateCyclomaticComplexity(
+                code.substring(func.range.start, func.range.end), 
+                language
+            ).cyclomaticComplexity
+        }));
+        
+        const links = [];
+        for (const [caller, deps] of Object.entries(dependencies)) {
+            for (const callee of deps.calls) {
+                links.push({
+                    source: caller,
+                    target: callee
+                });
+            }
+        }
+        
+        return {
+            nodes,
+            links,
+            dependencies
+        };
+    }
+
+    /**
+     * Count the number of decision points in code
+     * @private
+     */
+    _countDecisionPoints(code, language) {
+        let conditionals = 0;
+        let loops = 0;
+        let switches = 0;
+        let catchBlocks = 0;
+        let logicalOperators = 0;
+        let ternaryOperators = 0;
+
+        // Common patterns across languages
+        const commonPatterns = {
+            logicalOperators: /&&|\|\|/g,
+            ternaryOperators: /\?.*:/g,
+        };
+
+        // Count based on language
+        if (language === 'javascript' || language === 'typescript' || 
+            language === 'javascriptreact' || language === 'typescriptreact') {
+            conditionals = (code.match(/\bif\b/g) || []).length;
+            loops = (code.match(/\bfor\b|\bwhile\b|\bdo\b/g) || []).length;
+            switches = (code.match(/\bswitch\b/g) || []).length;
+            catchBlocks = (code.match(/\bcatch\b/g) || []).length;
+            logicalOperators = (code.match(commonPatterns.logicalOperators) || []).length;
+            ternaryOperators = (code.match(commonPatterns.ternaryOperators) || []).length;
+        } else if (language === 'python') {
+            conditionals = (code.match(/\bif\b|\belif\b/g) || []).length;
+            loops = (code.match(/\bfor\b|\bwhile\b/g) || []).length;
+            catchBlocks = (code.match(/\bexcept\b/g) || []).length;
+            logicalOperators = (code.match(/\band\b|\bor\b/g) || []).length;
+        } else if (language === 'java' || language === 'csharp') {
+            conditionals = (code.match(/\bif\b/g) || []).length;
+            loops = (code.match(/\bfor\b|\bwhile\b|\bdo\b|\bforeach\b/g) || []).length;
+            switches = (code.match(/\bswitch\b/g) || []).length;
+            catchBlocks = (code.match(/\bcatch\b/g) || []).length;
+            logicalOperators = (code.match(commonPatterns.logicalOperators) || []).length;
+            ternaryOperators = (code.match(commonPatterns.ternaryOperators) || []).length;
+        }
+
+        const total = conditionals + loops + switches + catchBlocks + 
+                     Math.floor(logicalOperators / 2) + ternaryOperators;
+
+        return {
+            conditionals,
+            loops,
+            switches,
+            catchBlocks,
+            logicalOperators,
+            ternaryOperators,
+            total
+        };
+    }
+
+    /**
+     * Calculate the nesting level of code
+     * @private
+     */
+    _calculateNestingLevel(code, language) {
+        const lines = code.split('\n');
+        let maxNestingLevel = 0;
+        let currentLevel = 0;
+        
+        if (language === 'python') {
+            // For Python, we count indentation level
+            let previousIndentation = 0;
+            
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                
+                const indentation = line.search(/\S|$/);
+                
+                if (indentation > previousIndentation) {
+                    currentLevel += Math.floor((indentation - previousIndentation) / 4); // Assuming 4 spaces per level
+                } else if (indentation < previousIndentation) {
+                    currentLevel -= Math.floor((previousIndentation - indentation) / 4);
+                }
+                
+                maxNestingLevel = Math.max(maxNestingLevel, currentLevel);
+                previousIndentation = indentation;
+            }
+        } else {
+            // For C-like languages, we count braces
+            for (const line of lines) {
+                // Count opening braces
+                const openBraces = (line.match(/{/g) || []).length;
+                // Count closing braces
+                const closeBraces = (line.match(/}/g) || []).length;
+                
+                currentLevel += openBraces - closeBraces;
+                maxNestingLevel = Math.max(maxNestingLevel, currentLevel);
+            }
+        }
+        
+        return maxNestingLevel;
+    }
+
+    /**
+     * Count parameters in a function
+     * @private
+     */
+    _countParameters(code, language) {
+        let parameterCount = 0;
+        
+        if (language === 'javascript' || language === 'typescript' || 
+            language === 'javascriptreact' || language === 'typescriptreact') {
+            const paramMatch = code.match(/function\s+\w*\s*\(([^)]*)\)|(\w+|\([^)]*\))\s*=>\s*{/);
+            if (paramMatch) {
+                const params = paramMatch[1] || '';
+                parameterCount = params.split(',').filter(p => p.trim()).length;
+            }
+        } else if (language === 'python') {
+            const paramMatch = code.match(/def\s+\w+\s*\(([^)]*)\)/);
+            if (paramMatch) {
+                const params = paramMatch[1] || '';
+                parameterCount = params.split(',').filter(p => p.trim()).length;
+            }
+        } else if (language === 'java' || language === 'csharp') {
+            const paramMatch = code.match(/\w+\s+\w+\s*\(([^)]*)\)/);
+            if (paramMatch) {
+                const params = paramMatch[1] || '';
+                parameterCount = params.split(',').filter(p => p.trim()).length;
+            }
+        }
+        
+        return parameterCount;
+    }
+
+    /**
+     * Determine complexity level based on cyclomatic complexity
+     * @private
+     */
+    _determineComplexityLevel(complexity) {
+        if (complexity <= 5) {
+            return { level: 'low', color: '#4CAF50', description: 'Easy to maintain' };
+        } else if (complexity <= 10) {
+            return { level: 'moderate', color: '#FFC107', description: 'Moderately complex' };
+        } else if (complexity <= 20) {
+            return { level: 'high', color: '#FF9800', description: 'Complex, consider refactoring' };
+        } else {
+            return { level: 'very high', color: '#F44336', description: 'Highly complex, difficult to maintain, refactoring recommended' };
+        }
+    }
 }
 
-module.exports = {
-    Parser
-}; 
+module.exports = Parser; 

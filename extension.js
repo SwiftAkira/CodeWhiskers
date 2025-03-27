@@ -1,7 +1,8 @@
 const vscode = require('vscode');
-const parserModule = require('./src/parserModule');
+const Parser = require('./src/parserModule');
 const explanationEngine = require('./src/explanationEngine');
 const uiLayer = require('./src/uiLayer');
+const ComplexityVisualizer = require('./src/complexityVisualizer');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -11,10 +12,10 @@ function activate(context) {
 
     try {
         // Initialize components with error handling
-        let parser, explainer, ui;
+        let parser, explainer, ui, complexityVisualizer;
         
         try {
-            parser = new parserModule.Parser();
+            parser = new Parser();
             console.log('Parser initialized successfully');
         } catch (error) {
             console.error('Error initializing Parser:', error);
@@ -36,93 +37,154 @@ function activate(context) {
             console.error('Error initializing UILayer:', error);
             ui = null;
         }
+        
+        try {
+            complexityVisualizer = new ComplexityVisualizer();
+            console.log('ComplexityVisualizer initialized successfully');
+        } catch (error) {
+            console.error('Error initializing ComplexityVisualizer:', error);
+            complexityVisualizer = null;
+        }
 
         // Register commands with safety checks
-        const explainCodeCommand = vscode.commands.registerCommand('codewhiskers.explainCode', function () {
+        const explainCodeCommand = vscode.commands.registerCommand('codewhiskers.explainCode', async () => {
             if (!parser || !explainer || !ui) {
                 vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Analyzing code...');
+            
+            try {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
+                    return;
+                }
+                
                 const selection = editor.selection;
                 const text = editor.document.getText(selection);
                 
-                if (text.length === 0) {
-                    vscode.window.showInformationMessage('Please select some code to explain');
+                if (!text) {
+                    vscode.window.showWarningMessage('No code selected. Please select some code to explain.');
                     return;
                 }
                 
                 const language = editor.document.languageId;
-                try {
-                    const parsedCode = parser.parseCode(text, language);
-                    const explanation = explainer.generateExplanation(parsedCode);
-                    ui.showExplanation(explanation, editor);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Error explaining code: ${error.message}`);
-                    console.error('Error in explainCode:', error);
-                }
+                
+                // Use setTimeout to prevent UI blocking
+                setTimeout(async () => {
+                    try {
+                        const parsedCode = parser.parseCode(text, language);
+                        const explanation = await explainer.generateExplanation(parsedCode);
+                        ui.showExplanation(explanation, editor);
+                    } catch (error) {
+                        console.error('Error explaining code:', error);
+                        vscode.window.showErrorMessage(`Error explaining code: ${error.message}`);
+                    } finally {
+                        loadingMessage.dispose();
+                    }
+                }, 0);
+            } catch (error) {
+                loadingMessage.dispose();
+                console.error('Error in explain command:', error);
+                vscode.window.showErrorMessage(`Error: ${error.message}`);
             }
         });
 
-        const traceVariableCommand = vscode.commands.registerCommand('codewhiskers.traceVariable', function () {
+        const traceVariableCommand = vscode.commands.registerCommand('codewhiskers.traceVariable', async () => {
             if (!parser || !ui) {
                 vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                const selection = editor.selection;
-                const text = editor.document.getText(selection);
-                
-                if (text.length === 0) {
-                    vscode.window.showInformationMessage('Please select a variable to trace');
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Tracing variable...');
+            
+            try {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
                     return;
                 }
                 
-                try {
-                    const variableUsages = parser.traceVariable(text, editor.document);
-                    ui.showVariableTraces(variableUsages, editor);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Error tracing variable: ${error.message}`);
+                const selection = editor.selection;
+                const text = editor.document.getText(selection);
+                
+                if (!text) {
+                    vscode.window.showWarningMessage('No variable selected. Please select a variable to trace.');
+                    return;
                 }
+                
+                const document = editor.document;
+                const fileContent = document.getText();
+                const language = document.languageId;
+                
+                const trace = parser.traceVariable(text, fileContent, language);
+                ui.showVariableTraces(trace, text);
+            } catch (error) {
+                console.error('Error tracing variable:', error);
+                vscode.window.showErrorMessage(`Error tracing variable: ${error.message}`);
+            } finally {
+                loadingMessage.dispose();
             }
         });
 
-        const suggestDocumentationCommand = vscode.commands.registerCommand('codewhiskers.suggestDocumentation', function () {
+        const suggestDocumentationCommand = vscode.commands.registerCommand('codewhiskers.suggestDocumentation', async () => {
             if (!parser || !ui) {
                 vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                try {
-                    const undocumentedSections = parser.findUndocumentedCode(editor.document);
-                    ui.showDocumentationSuggestions(undocumentedSections, editor);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Error suggesting documentation: ${error.message}`);
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Suggesting documentation...');
+            
+            try {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
+                    return;
                 }
+                
+                const document = editor.document;
+                const fileContent = document.getText();
+                const language = document.languageId;
+                
+                const undocumented = parser.findUndocumentedCode(fileContent, language);
+                ui.showDocumentationSuggestions(undocumented, language);
+            } catch (error) {
+                console.error('Error suggesting documentation:', error);
+                vscode.window.showErrorMessage(`Error suggesting documentation: ${error.message}`);
+            } finally {
+                loadingMessage.dispose();
             }
         });
 
-        const analyzeFunctionsCommand = vscode.commands.registerCommand('codewhiskers.analyzeFunctions', function () {
+        const analyzeFunctionsCommand = vscode.commands.registerCommand('codewhiskers.analyzeFunctions', async () => {
             if (!parser || !explainer || !ui) {
                 vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
                 return;
             }
             
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                try {
-                    const functions = parser.findFunctions(editor.document);
-                    const analyzedFunctions = functions.map(fn => explainer.analyzeFunctionBehavior(fn));
-                    ui.showFunctionAnalysis(analyzedFunctions, editor);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Error analyzing functions: ${error.message}`);
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Analyzing functions...');
+            
+            try {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
+                    return;
                 }
+                
+                const document = editor.document;
+                const fileContent = document.getText();
+                const language = document.languageId;
+                
+                const functions = parser.findFunctions(fileContent, language);
+                const analyzedFunctions = functions.map(fn => explainer.analyzeFunctionBehavior(fn));
+                ui.showFunctionAnalysis(analyzedFunctions, language);
+            } catch (error) {
+                console.error('Error analyzing functions:', error);
+                vscode.window.showErrorMessage(`Error analyzing functions: ${error.message}`);
+            } finally {
+                loadingMessage.dispose();
             }
         });
 
@@ -173,6 +235,98 @@ function activate(context) {
             }
         });
 
+        // Add command for code complexity analysis
+        const analyzeComplexityCommand = vscode.commands.registerCommand('codewhiskers.analyzeComplexity', async () => {
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Analyzing code complexity...');
+            
+            try {
+                if (!parser || !complexityVisualizer) {
+                    vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
+                    return;
+                }
+                
+                const document = editor.document;
+                const fileContent = document.getText();
+                const language = document.languageId;
+                const fileName = document.fileName.split('/').pop();
+                
+                // Use setTimeout to prevent UI blocking
+                setTimeout(async () => {
+                    try {
+                        const functionAnalyses = parser.analyzeFunctionComplexity(fileContent, language);
+                        
+                        if (functionAnalyses.length === 0) {
+                            vscode.window.showInformationMessage('No functions found to analyze complexity.');
+                            return;
+                        }
+                        
+                        complexityVisualizer.showComplexityAnalysis(functionAnalyses, fileName);
+                    } catch (error) {
+                        console.error('Error analyzing complexity:', error);
+                        vscode.window.showErrorMessage(`Error analyzing complexity: ${error.message}`);
+                    } finally {
+                        loadingMessage.dispose();
+                    }
+                }, 0);
+            } catch (error) {
+                loadingMessage.dispose();
+                console.error('Error in complexity analysis command:', error);
+                vscode.window.showErrorMessage(`Error: ${error.message}`);
+            }
+        });
+
+        // Add command for dependency graph visualization
+        const visualizeDependenciesCommand = vscode.commands.registerCommand('codewhiskers.visualizeDependencies', async () => {
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Generating dependency graph...');
+            
+            try {
+                if (!parser || !complexityVisualizer) {
+                    vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
+                    return;
+                }
+                
+                const document = editor.document;
+                const fileContent = document.getText();
+                const language = document.languageId;
+                const fileName = document.fileName.split('/').pop();
+                
+                // Use setTimeout to prevent UI blocking
+                setTimeout(async () => {
+                    try {
+                        const dependencyData = parser.analyzeDependencies(fileContent, language);
+                        
+                        if (dependencyData.nodes.length <= 1) {
+                            vscode.window.showInformationMessage('Not enough functions found to create a dependency graph.');
+                            return;
+                        }
+                        
+                        complexityVisualizer.showDependencyGraph(dependencyData, fileName);
+                    } catch (error) {
+                        console.error('Error generating dependency graph:', error);
+                        vscode.window.showErrorMessage(`Error generating dependency graph: ${error.message}`);
+                    } finally {
+                        loadingMessage.dispose();
+                    }
+                }, 0);
+            } catch (error) {
+                loadingMessage.dispose();
+                console.error('Error in dependency visualization command:', error);
+                vscode.window.showErrorMessage(`Error: ${error.message}`);
+            }
+        });
+
         // Add to subscriptions
         context.subscriptions.push(explainCodeCommand);
         context.subscriptions.push(traceVariableCommand);
@@ -180,6 +334,8 @@ function activate(context) {
         context.subscriptions.push(analyzeFunctionsCommand);
         context.subscriptions.push(openSettingsCommand);
         context.subscriptions.push(changeHandler);
+        context.subscriptions.push(analyzeComplexityCommand);
+        context.subscriptions.push(visualizeDependenciesCommand);
     } catch (error) {
         console.error('Fatal error during CodeWhiskers activation:', error);
         vscode.window.showErrorMessage('CodeWhiskers could not be activated properly. Some features may not work.');
