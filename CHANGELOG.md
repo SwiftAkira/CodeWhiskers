@@ -10,6 +10,9 @@ All notable changes to the "WhiskerCode" extension will be documented in this fi
   - Quick access to key features with visual guides
   - Keyboard shortcut reference
   - Animated interface with cat-themed elements
+  - **New:** Added "Reopen Welcome Guide" button in settings panel
+  - **New:** Prioritized welcome guide in status bar quick actions
+  - **New:** Multiple ways to access the guide if accidentally closed
 - Status bar quick actions menu:
   - Convenient access to all WhiskerCode features from status bar
   - VS Code-native dropdown menu with icons for each feature

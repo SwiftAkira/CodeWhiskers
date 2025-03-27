@@ -2300,21 +2300,19 @@ class UILayer {
     }
     
     /**
-     * Show the settings UI in a WebView panel
+     * Show settings UI in a webview panel
      */
     showSettingsUI() {
-        // Create WebView panel for settings
         const panel = vscode.window.createWebviewPanel(
-            'codewhiskers.settings',
-            'CodeWhiskers Settings',
-            vscode.ViewColumn.Active,
-            { 
+            'codewhiskersSettings',
+            'WhiskerCode Settings',
+            vscode.ViewColumn.One,
+            {
                 enableScripts: true,
                 retainContextWhenHidden: true
             }
         );
         
-        // Generate HTML for the settings UI
         panel.webview.html = this._generateSettingsHTML();
         
         // Handle messages from the webview
@@ -2323,27 +2321,35 @@ class UILayer {
                 switch (message.command) {
                     case 'saveSettings':
                         this._saveSettings(message.settings);
+                        // Confirm settings are saved
                         panel.webview.postMessage({ command: 'settingsSaved' });
-                        return;
-                        
+                        break;
                     case 'resetSettings':
                         this._resetSettings();
-                        panel.webview.postMessage({ 
+                        // Send updated settings back to webview
+                        const config = vscode.workspace.getConfiguration('whiskercode');
+                        panel.webview.postMessage({
                             command: 'settingsReset',
-                            settings: this.settings
+                            settings: {
+                                explanationStyle: config.get('explanationStyle'),
+                                uiTheme: config.get('uiTheme'),
+                                animationFrequency: config.get('animationFrequency'),
+                                enableEmojis: config.get('enableEmojis'),
+                                enableAnimations: config.get('enableAnimations'),
+                                enableDecorations: config.get('enableDecorations'),
+                                enableAutoRefresh: config.get('enableAutoRefresh'),
+                                showCatImages: config.get('showCatImages')
+                            }
                         });
-                        return;
-                        
-                    case 'getSettings':
-                        panel.webview.postMessage({ 
-                            command: 'currentSettings',
-                            settings: this.settings
-                        });
-                        return;
+                        break;
+                    case 'showWelcome':
+                        // Reset the welcome flag and show the welcome wizard
+                        vscode.commands.executeCommand('whiskercode.showWelcome');
+                        break;
                 }
             },
             undefined,
-            this.context.subscriptions
+            this._disposables
         );
     }
     
@@ -2352,284 +2358,544 @@ class UILayer {
      * @private
      */
     _generateSettingsHTML() {
-        return `
+        // Get theme options for dropdown
+        const themes = [
+            { value: 'tabby', label: 'Tabby Cat' },
+            { value: 'siamese', label: 'Siamese Cat' },
+            { value: 'calico', label: 'Calico Cat' },
+            { value: 'black', label: 'Black Cat' }
+        ];
+        
+        const catThemes = [
+            { value: 'default', label: 'Default Cat' },
+            { value: 'grumpy', label: 'Grumpy Cat' },
+            { value: 'sleepy', label: 'Sleepy Cat' },
+            { value: 'surprise', label: 'Surprised Cat' },
+            { value: 'love', label: 'Loving Cat' },
+            { value: 'sassy', label: 'Sassy Cat' },
+            { value: 'nerd', label: 'Nerdy Cat' },
+            { value: 'cool', label: 'Cool Cat' },
+            { value: 'ninja', label: 'Ninja Cat' }
+        ];
+        
+        const explanationStyles = [
+            { value: 'conversational', label: 'Conversational' },
+            { value: 'technical', label: 'Technical' },
+            { value: 'detailed', label: 'Detailed' }
+        ];
+        
+        const animationFrequencies = [
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' }
+        ];
+        
+        const uiStyles = [
+            { value: 'modern', label: 'Modern' },
+            { value: 'minimal', label: 'Minimal' },
+            { value: 'playful', label: 'Playful' },
+            { value: 'professional', label: 'Professional' }
+        ];
+        
+        // Get current settings
+        const config = vscode.workspace.getConfiguration('whiskercode');
+        const currentTheme = config.get('uiTheme');
+        const currentCatTheme = config.get('catTheme');
+        const currentExplanationStyle = config.get('explanationStyle');
+        const currentAnimationFrequency = config.get('animationFrequency');
+        const currentUiStyle = config.get('uiStyle');
+        const enableEmojis = config.get('enableEmojis');
+        const enableAnimations = config.get('enableAnimations');
+        const enableDecorations = config.get('enableDecorations');
+        const enableAutoRefresh = config.get('enableAutoRefresh');
+        const showCatImages = config.get('showCatImages');
+        const enableCatSounds = config.get('enableCatSounds');
+        const enableSeasonalThemes = config.get('enableSeasonalThemes');
+        
+        // Create HTML content
+        return /*html*/`
             <!DOCTYPE html>
-            <html lang="en">
+            <html>
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>CodeWhiskers Settings</title>
+                <title>WhiskerCode Settings</title>
                 <style>
+                    :root {
+                        --container-padding: 20px;
+                        --input-padding-vertical: 6px;
+                        --input-padding-horizontal: 4px;
+                        --input-margin-vertical: 4px;
+                        --input-margin-horizontal: 0;
+                    }
+                    
                     body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
-                        padding: 0;
-                        margin: 0;
-                        color: var(--vscode-editor-foreground);
+                        padding: 0 var(--container-padding);
+                        color: var(--vscode-foreground);
+                        font-size: var(--vscode-font-size);
+                        font-weight: var(--vscode-font-weight);
+                        font-family: var(--vscode-font-family);
                         background-color: var(--vscode-editor-background);
                     }
-                    .container {
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
+                    
+                    ol,
+                    ul {
+                        padding-left: var(--container-padding);
                     }
-                    .header {
+                    
+                    body > *,
+                    form > * {
+                        margin-block-start: var(--input-margin-vertical);
+                        margin-block-end: var(--input-margin-vertical);
+                    }
+                    
+                    *:focus {
+                        outline-color: var(--vscode-focusBorder) !important;
+                    }
+                    
+                    a {
+                        color: var(--vscode-textLink-foreground);
+                    }
+                    
+                    a:hover,
+                    a:active {
+                        color: var(--vscode-textLink-activeForeground);
+                    }
+                    
+                    code {
+                        font-size: var(--vscode-editor-font-size);
+                        font-family: var(--vscode-editor-font-family);
+                    }
+                    
+                    button {
+                        border: none;
+                        padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+                        width: 100%;
+                        text-align: center;
+                        outline: 1px solid transparent;
+                        outline-offset: 2px !important;
+                        color: var(--vscode-button-foreground);
+                        background: var(--vscode-button-background);
+                        cursor: pointer;
+                        border-radius: 4px;
+                        margin-top: 10px;
+                        transition: background-color 0.2s;
+                    }
+                    
+                    button:hover {
+                        background: var(--vscode-button-hoverBackground);
+                    }
+                    
+                    button:focus {
+                        outline-color: var(--vscode-focusBorder);
+                    }
+                    
+                    button.secondary {
+                        color: var(--vscode-button-secondaryForeground);
+                        background: var(--vscode-button-secondaryBackground);
                         margin-bottom: 20px;
+                    }
+                    
+                    button.secondary:hover {
+                        background: var(--vscode-button-secondaryHoverBackground);
+                    }
+                    
+                    input:not([type='checkbox']),
+                    textarea {
+                        display: block;
+                        width: 100%;
+                        border: none;
+                        font-family: var(--vscode-font-family);
+                        padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+                        color: var(--vscode-input-foreground);
+                        outline-color: var(--vscode-input-border);
+                        background-color: var(--vscode-input-background);
+                    }
+                    
+                    input::placeholder,
+                    textarea::placeholder {
+                        color: var(--vscode-input-placeholderForeground);
+                    }
+                    
+                    select {
+                        display: block;
+                        width: 100%;
+                        border: none;
+                        font-family: var(--vscode-font-family);
+                        padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+                        color: var(--vscode-dropdown-foreground);
+                        outline-color: var(--vscode-dropdown-border);
+                        background-color: var(--vscode-dropdown-background);
+                    }
+                    
+                    h1 {
+                        font-size: 1.5em;
+                        margin-bottom: 1em;
+                        color: var(--vscode-terminal-ansiMagenta);
+                    }
+                    
+                    h2 {
+                        font-size: 1.2em;
+                        margin-top: 1.5em;
+                        margin-bottom: 0.5em;
+                        color: var(--vscode-terminal-ansiBlue);
+                    }
+                    
+                    .form-group {
+                        margin-bottom: 1em;
+                    }
+                    
+                    label {
+                        display: block;
+                        margin-bottom: 0.5em;
+                        color: var(--vscode-input-foreground);
+                    }
+                    
+                    .checkbox-group {
                         display: flex;
                         align-items: center;
+                        margin-bottom: 0.8em;
                     }
-                    .header-icon {
-                        font-size: 24px;
+                    
+                    .checkbox-group input[type="checkbox"] {
                         margin-right: 10px;
                     }
-                    h2 {
-                        margin: 0;
+                    
+                    .checkbox-group label {
+                        margin-bottom: 0;
+                        cursor: pointer;
                     }
-                    .settings-section {
-                        margin-bottom: 30px;
+                    
+                    .cat-preview {
+                        margin-top: 20px;
+                        padding: 20px;
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        border-radius: 10px;
+                        text-align: center;
                     }
-                    .settings-section h3 {
-                        margin-top: 0;
-                        margin-bottom: 10px;
-                        border-bottom: 1px solid var(--vscode-panel-border);
-                        padding-bottom: 5px;
+                    
+                    .cat-emoji {
+                        font-size: 5em;
                     }
-                    .setting-item {
-                        margin-bottom: 15px;
-                        display: flex;
-                        flex-direction: column;
+                    
+                    .cat-message {
+                        margin-top: 10px;
+                        font-size: 1.1em;
+                        font-style: italic;
                     }
-                    .setting-label {
-                        font-weight: bold;
-                        margin-bottom: 5px;
+                    
+                    .cat-animation {
+                        animation: bounce 1s infinite;
                     }
+                    
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-20px); }
+                    }
+                    
                     .setting-description {
-                        margin-bottom: 8px;
-                        font-size: 12px;
-                        opacity: 0.8;
+                        font-size: 0.9em;
+                        margin-top: 5px;
+                        color: var(--vscode-descriptionForeground);
                     }
-                    select, input[type="checkbox"] {
-                        padding: 5px;
-                        background-color: var(--vscode-input-background);
-                        color: var(--vscode-input-foreground);
-                        border: 1px solid var(--vscode-input-border);
-                        border-radius: 2px;
+                    
+                    .help-section {
+                        margin-top: 30px;
+                        padding: 15px;
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        border-radius: 5px;
                     }
-                    select {
-                        width: 100%;
-                        max-width: 300px;
+                    
+                    .help-section h3 {
+                        margin-top: 0;
+                        color: var(--vscode-terminal-ansiCyan);
                     }
-                    .checkbox-container {
+                    
+                    .help-links {
+                        list-style: none;
+                        padding-left: 0;
+                    }
+                    
+                    .help-links li {
+                        margin-bottom: 10px;
+                    }
+                    
+                    .help-links a {
                         display: flex;
                         align-items: center;
+                        text-decoration: none;
                     }
-                    .checkbox-container input {
-                        margin-right: 8px;
+                    
+                    .help-links .icon {
+                        margin-right: 10px;
+                        font-size: 1.2em;
                     }
-                    .action-buttons {
+                    
+                    .version {
+                        margin-top: 30px;
+                        text-align: center;
+                        font-size: 0.8em;
+                        color: var(--vscode-descriptionForeground);
+                    }
+                    
+                    .buttons-row {
                         display: flex;
                         gap: 10px;
-                        margin-top: 20px;
                     }
-                    .action-button {
-                        background-color: var(--vscode-button-background);
-                        color: var(--vscode-button-foreground);
-                        border: none;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 13px;
+                    
+                    .buttons-row button {
+                        flex: 1;
                     }
-                    .action-button:hover {
-                        background-color: var(--vscode-button-hoverBackground);
+                    
+                    .welcome-button {
+                        margin-top: 30px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 10px;
+                        background-color: var(--vscode-button-secondaryBackground) !important;
                     }
-                    .reset-button {
-                        background-color: var(--vscode-errorForeground, #f44336);
-                    }
-                    .success-message {
-                        color: #4caf50;
-                        margin-top: 10px;
-                        font-weight: bold;
-                        display: none;
+                    
+                    .welcome-button:hover {
+                        background-color: var(--vscode-button-secondaryHoverBackground) !important;
                     }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <div class="header">
-                        <div class="header-icon">⚙️</div>
-                        <h2>CodeWhiskers Settings</h2>
+                    <h1>🐱 WhiskerCode Settings</h1>
+                    
+                    <form id="settings-form">
+                        <h2>Appearance</h2>
+                        
+                        <div class="form-group">
+                            <label for="uiTheme">UI Theme</label>
+                            <select id="uiTheme" name="uiTheme">
+                                ${themes.map(theme => 
+                                    `<option value="${theme.value}" ${theme.value === currentTheme ? 'selected' : ''}>${theme.label}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="setting-description">Background theme for UI elements</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="catTheme">Cat Character</label>
+                            <select id="catTheme" name="catTheme">
+                                ${catThemes.map(theme => 
+                                    `<option value="${theme.value}" ${theme.value === currentCatTheme ? 'selected' : ''}>${theme.label}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="setting-description">Choose your cat character's personality</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="uiStyle">UI Style</label>
+                            <select id="uiStyle" name="uiStyle">
+                                ${uiStyles.map(style => 
+                                    `<option value="${style.value}" ${style.value === currentUiStyle ? 'selected' : ''}>${style.label}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="setting-description">Overall style for visualizations and panels</div>
+                        </div>
+                        
+                        <div class="cat-preview">
+                            <div class="cat-emoji ${enableAnimations ? 'cat-animation' : ''}">😺</div>
+                            <div class="cat-message">Meow! I'm your coding companion!</div>
+                        </div>
+                        
+                        <h2>Behavior</h2>
+                        
+                        <div class="form-group">
+                            <label for="explanationStyle">Explanation Style</label>
+                            <select id="explanationStyle" name="explanationStyle">
+                                ${explanationStyles.map(style => 
+                                    `<option value="${style.value}" ${style.value === currentExplanationStyle ? 'selected' : ''}>${style.label}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="setting-description">How code explanations are presented</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="animationFrequency">Animation Frequency</label>
+                            <select id="animationFrequency" name="animationFrequency">
+                                ${animationFrequencies.map(freq => 
+                                    `<option value="${freq.value}" ${freq.value === currentAnimationFrequency ? 'selected' : ''}>${freq.label}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="setting-description">How often animations are shown</div>
+                        </div>
+                        
+                        <h2>Features</h2>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="enableEmojis" name="enableEmojis" ${enableEmojis ? 'checked' : ''}>
+                            <label for="enableEmojis">Enable Emojis</label>
+                        </div>
+                        <div class="setting-description">Show emoji icons in the UI</div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="enableAnimations" name="enableAnimations" ${enableAnimations ? 'checked' : ''}>
+                            <label for="enableAnimations">Enable Animations</label>
+                        </div>
+                        <div class="setting-description">Show animations in the UI</div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="enableDecorations" name="enableDecorations" ${enableDecorations ? 'checked' : ''}>
+                            <label for="enableDecorations">Enable Code Decorations</label>
+                        </div>
+                        <div class="setting-description">Show decorations in the editor</div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="enableAutoRefresh" name="enableAutoRefresh" ${enableAutoRefresh ? 'checked' : ''}>
+                            <label for="enableAutoRefresh">Enable Auto Refresh</label>
+                        </div>
+                        <div class="setting-description">Automatically refresh analysis when code changes</div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="showCatImages" name="showCatImages" ${showCatImages ? 'checked' : ''}>
+                            <label for="showCatImages">Show Cat Images</label>
+                        </div>
+                        <div class="setting-description">Show cat images in explanation panels</div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="enableCatSounds" name="enableCatSounds" ${enableCatSounds ? 'checked' : ''}>
+                            <label for="enableCatSounds">Enable Cat Sounds</label>
+                        </div>
+                        <div class="setting-description">Play cat sound effects on actions</div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="enableSeasonalThemes" name="enableSeasonalThemes" ${enableSeasonalThemes ? 'checked' : ''}>
+                            <label for="enableSeasonalThemes">Enable Seasonal Themes</label>
+                        </div>
+                        <div class="setting-description">Show special themes for holidays and seasons</div>
+                        
+                        <div class="buttons-row">
+                            <button type="submit">Save Settings</button>
+                            <button type="button" id="reset-button" class="secondary">Reset to Defaults</button>
+                        </div>
+                        
+                        <button type="button" id="welcome-button" class="welcome-button">
+                            <span>🐱</span> Reopen Welcome Guide
+                        </button>
+                    </form>
+                    
+                    <div class="help-section">
+                        <h3>Need Help?</h3>
+                        <ul class="help-links">
+                            <li>
+                                <a href="https://github.com/SwiftAkira/WhiskerCode/wiki" target="_blank">
+                                    <span class="icon">📚</span> Documentation
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://github.com/SwiftAkira/WhiskerCode/issues" target="_blank">
+                                    <span class="icon">🐛</span> Report an Issue
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://github.com/SwiftAkira/WhiskerCode/discussions" target="_blank">
+                                    <span class="icon">💬</span> Community Discussions
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                     
-                    <div class="settings-form">
-                        <div class="settings-section">
-                            <h3>Explanation Options</h3>
-                            
-                            <div class="setting-item">
-                                <label class="setting-label" for="explanationStyle">Explanation Style</label>
-                                <div class="setting-description">Choose the level of detail for code explanations</div>
-                                <select id="explanationStyle">
-                                    <option value="conversational">Conversational</option>
-                                    <option value="technical">Technical</option>
-                                    <option value="detailed">Detailed</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="settings-section">
-                            <h3>UI Options</h3>
-                            
-                            <div class="setting-item">
-                                <label class="setting-label" for="uiTheme">Theme</label>
-                                <div class="setting-description">Choose the kitten theme for UI elements</div>
-                                <select id="uiTheme">
-                                    <option value="tabby">Tabby</option>
-                                    <option value="siamese">Siamese</option>
-                                    <option value="calico">Calico</option>
-                                    <option value="black">Black</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <label class="setting-label" for="animationFrequency">Animation Frequency</label>
-                                <div class="setting-description">Set how often animations should appear</div>
-                                <select id="animationFrequency">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableEmojis">
-                                    <label class="setting-label" for="enableEmojis">Enable Emojis</label>
-                                </div>
-                                <div class="setting-description">Show emoji icons in the UI</div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableAnimations">
-                                    <label class="setting-label" for="enableAnimations">Enable Animations</label>
-                                </div>
-                                <div class="setting-description">Enable UI animations</div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="showCatImages">
-                                    <label class="setting-label" for="showCatImages">Show Cat Images</label>
-                                </div>
-                                <div class="setting-description">Display cat images in explanation panels</div>
-                            </div>
-                        </div>
-                        
-                        <div class="settings-section">
-                            <h3>Code Editor Options</h3>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableDecorations">
-                                    <label class="setting-label" for="enableDecorations">Enable Code Decorations</label>
-                                </div>
-                                <div class="setting-description">Show decorations in the code editor</div>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <div class="checkbox-container">
-                                    <input type="checkbox" id="enableAutoRefresh">
-                                    <label class="setting-label" for="enableAutoRefresh">Auto-Refresh Analysis</label>
-                                </div>
-                                <div class="setting-description">Automatically refresh analysis when code changes</div>
-                            </div>
-                        </div>
-                        
-                        <div class="action-buttons">
-                            <button class="action-button" id="saveBtn">Save Settings</button>
-                            <button class="action-button reset-button" id="resetBtn">Reset to Defaults</button>
-                        </div>
-                        
-                        <div class="success-message" id="successMessage">
-                            Settings saved successfully! 😺
-                        </div>
+                    <div class="version">
+                        WhiskerCode v1.3.1
                     </div>
                 </div>
                 
                 <script>
-                    const vscode = acquireVsCodeApi();
-                    
-                    // Request current settings from extension
-                    window.addEventListener('load', () => {
-                        vscode.postMessage({
-                            command: 'getSettings'
-                        });
-                    });
-                    
-                    // Apply settings to the form
-                    function applySettings(settings) {
-                        document.getElementById('explanationStyle').value = settings.explanationStyle;
-                        document.getElementById('uiTheme').value = settings.uiTheme;
-                        document.getElementById('animationFrequency').value = settings.animationFrequency;
-                        document.getElementById('enableEmojis').checked = settings.enableEmojis;
-                        document.getElementById('enableAnimations').checked = settings.enableAnimations;
-                        document.getElementById('enableDecorations').checked = settings.enableDecorations;
-                        document.getElementById('enableAutoRefresh').checked = settings.enableAutoRefresh;
-                        document.getElementById('showCatImages').checked = settings.showCatImages;
-                    }
-                    
-                    // Get current settings from form
-                    function getFormSettings() {
-                        return {
-                            explanationStyle: document.getElementById('explanationStyle').value,
-                            uiTheme: document.getElementById('uiTheme').value,
-                            animationFrequency: document.getElementById('animationFrequency').value,
-                            enableEmojis: document.getElementById('enableEmojis').checked,
-                            enableAnimations: document.getElementById('enableAnimations').checked,
-                            enableDecorations: document.getElementById('enableDecorations').checked,
-                            enableAutoRefresh: document.getElementById('enableAutoRefresh').checked,
-                            showCatImages: document.getElementById('showCatImages').checked
-                        };
-                    }
-                    
-                    // Add event listeners to buttons
-                    document.getElementById('saveBtn').addEventListener('click', () => {
-                        const settings = getFormSettings();
-                        vscode.postMessage({
-                            command: 'saveSettings',
-                            settings: settings
-                        });
-                    });
-                    
-                    document.getElementById('resetBtn').addEventListener('click', () => {
-                        vscode.postMessage({
-                            command: 'resetSettings'
-                        });
-                    });
-                    
-                    // Handle messages from extension
-                    window.addEventListener('message', event => {
-                        const message = event.data;
+                    (function() {
+                        const vscode = acquireVsCodeApi();
                         
-                        switch (message.command) {
-                            case 'currentSettings':
-                                applySettings(message.settings);
-                                break;
-                                
-                            case 'settingsSaved':
-                                // Show success message
-                                const successMessage = document.getElementById('successMessage');
-                                successMessage.style.display = 'block';
-                                // Hide after a delay
-                                setTimeout(() => {
-                                    successMessage.style.display = 'none';
-                                }, 3000);
-                                break;
-                                
-                            case 'settingsReset':
-                                applySettings(message.settings);
-                                break;
-                        }
-                    });
+                        // Handle form submission
+                        document.getElementById('settings-form').addEventListener('submit', (event) => {
+                            event.preventDefault();
+                            
+                            const formData = new FormData(event.target);
+                            const settings = {
+                                uiTheme: formData.get('uiTheme'),
+                                catTheme: formData.get('catTheme'),
+                                explanationStyle: formData.get('explanationStyle'),
+                                animationFrequency: formData.get('animationFrequency'),
+                                uiStyle: formData.get('uiStyle'),
+                                enableEmojis: formData.get('enableEmojis') === 'on',
+                                enableAnimations: formData.get('enableAnimations') === 'on',
+                                enableDecorations: formData.get('enableDecorations') === 'on',
+                                enableAutoRefresh: formData.get('enableAutoRefresh') === 'on',
+                                showCatImages: formData.get('showCatImages') === 'on',
+                                enableCatSounds: formData.get('enableCatSounds') === 'on',
+                                enableSeasonalThemes: formData.get('enableSeasonalThemes') === 'on'
+                            };
+                            
+                            vscode.postMessage({
+                                command: 'saveSettings',
+                                settings: settings
+                            });
+                        });
+                        
+                        // Handle reset button
+                        document.getElementById('reset-button').addEventListener('click', () => {
+                            vscode.postMessage({
+                                command: 'resetSettings'
+                            });
+                        });
+                        
+                        // Handle welcome guide button
+                        document.getElementById('welcome-button').addEventListener('click', () => {
+                            vscode.postMessage({
+                                command: 'showWelcome'
+                            });
+                        });
+                        
+                        // Update cat preview when theme changes
+                        document.getElementById('catTheme').addEventListener('change', (event) => {
+                            // In a real implementation, we would update the emoji based on the theme
+                            // For this example, we'll just use a simple switch
+                            const theme = event.target.value;
+                            let emoji = '😺';
+                            
+                            switch (theme) {
+                                case 'grumpy':
+                                    emoji = '😾';
+                                    break;
+                                case 'sleepy':
+                                    emoji = '😴';
+                                    break;
+                                case 'surprise':
+                                    emoji = '😳';
+                                    break;
+                                case 'love':
+                                    emoji = '😻';
+                                    break;
+                                case 'sassy':
+                                    emoji = '🙄';
+                                    break;
+                                case 'nerd':
+                                    emoji = '🤓';
+                                    break;
+                                case 'cool':
+                                    emoji = '😎';
+                                    break;
+                                case 'ninja':
+                                    emoji = '🥷';
+                                    break;
+                            }
+                            
+                            document.querySelector('.cat-emoji').textContent = emoji;
+                        });
+                        
+                        // Toggle animations when the setting changes
+                        document.getElementById('enableAnimations').addEventListener('change', (event) => {
+                            const catEmoji = document.querySelector('.cat-emoji');
+                            if (event.target.checked) {
+                                catEmoji.classList.add('cat-animation');
+                            } else {
+                                catEmoji.classList.remove('cat-animation');
+                            }
+                        });
+                    })();
                 </script>
             </body>
             </html>
@@ -4603,6 +4869,11 @@ const results = await Promise.all(promises);`;
             // Show quick actions as a dropdown menu
             const actions = [
                 {
+                    label: '$(book) Welcome Guide',
+                    description: 'Show the welcome guide tutorial',
+                    command: 'whiskercode.showWelcome'
+                },
+                {
                     label: '$(light-bulb) Explain Selected Code',
                     description: 'Get a cat-friendly explanation',
                     command: 'whiskercode.explainCode'
@@ -4626,11 +4897,6 @@ const results = await Promise.all(promises);`;
                     label: '$(paintcan) Change Theme',
                     description: 'Switch cat theme',
                     command: 'whiskercode.changeCatTheme'
-                },
-                {
-                    label: '$(book) Welcome Guide',
-                    description: 'Show the welcome guide',
-                    command: 'whiskercode.showWelcome'
                 }
             ];
             
