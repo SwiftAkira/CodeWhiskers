@@ -26,6 +26,8 @@ function activate(context) {
                 return;
             }
             
+            console.log('Selected code for explanation:', text);
+            
             const language = editor.document.languageId;
             try {
                 const parsedCode = parser.parseCode(text, language);
@@ -33,6 +35,7 @@ function activate(context) {
                 ui.showExplanation(explanation, editor);
             } catch (error) {
                 vscode.window.showErrorMessage(`Error explaining code: ${error.message}`);
+                console.error('Error in explainCode:', error);
             }
         }
     });

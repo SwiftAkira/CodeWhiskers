@@ -20,13 +20,18 @@ class Parser {
             throw new Error(`Language '${language}' is not currently supported`);
         }
 
+        // Clean up the code to remove any leading/trailing whitespace
+        const cleanCode = code.trim();
+        
+        console.log('Parsing code:', cleanCode);
+
         // In a real implementation, this would use TypeScript Compiler API or similar
         // For now, we'll use a simplified implementation
         return {
             type: 'code_block',
             language,
-            content: code,
-            structure: this._analyzeStructure(code, language),
+            content: cleanCode,
+            structure: this._analyzeStructure(cleanCode, language),
         };
     }
 
