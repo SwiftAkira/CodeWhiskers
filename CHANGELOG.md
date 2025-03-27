@@ -2,6 +2,29 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.2.8] - 2024-03-27
+
+### Fixed
+- Function Dependency Graph stability improvements:
+  - Fixed initialization issues that prevented graph rendering
+  - Added proper node circle highlight effects with more reliable interactions
+  - Fixed paw print positioning along connection paths
+  - Improved overall performance and stability
+
+## [1.2.7] - 2024-03-27
+
+### Enhanced
+- Major improvements to Function Dependency Graph visualization:
+  - Added interactive node highlighting for connected functions
+  - Implemented playful "pounce" animation when clicking on nodes
+  - Enhanced visual hierarchy with gradient fills and size-based representation
+  - Added cute cat paw prints along connection paths
+  - Added minimap for better navigation of large dependency graphs
+  - Improved zoom controls with cat-themed buttons
+  - Added interactive filters for complexity, dependencies, and function names
+  - Added export options (SVG, PNG) and data copying functionality
+  - Implemented animated success/error messages for better feedback
+
 ## [1.2.6] - 2024-03-27
 
 ### Enhanced

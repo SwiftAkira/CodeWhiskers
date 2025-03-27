@@ -24,7 +24,7 @@ class ComplexityVisualizer {
      * @param {string} fileName - Name of the file being analyzed
      */
     showComplexityAnalysis(functionAnalyses, fileName) {
-        const title = `CodeWhiskers: Complexity Analysis - ${fileName}`;
+        const title = 'CodeWhiskers: Complexity Analysis - ' + fileName;
         
         // Create webview panel if it doesn't exist
         if (!this._panel) {
@@ -63,7 +63,7 @@ class ComplexityVisualizer {
      * @param {string} fileName - Name of the file being analyzed
      */
     showDependencyGraph(dependencyData, fileName) {
-        const title = `CodeWhiskers: Dependency Graph - ${fileName}`;
+        const title = 'CodeWhiskers: Dependency Graph - ' + fileName;
         
         // Create webview panel if it doesn't exist
         if (!this._panel) {
@@ -98,7 +98,7 @@ class ComplexityVisualizer {
         if (!func) return;
         
         vscode.window.showInformationMessage(
-            `Function "${functionName}" has cyclomatic complexity ${func.cyclomaticComplexity} (${func.complexityLevel.level})`
+            'Function "' + functionName + '" has cyclomatic complexity ' + func.cyclomaticComplexity + ' (' + func.complexityLevel.level + ')'
         );
     }
     
@@ -629,7 +629,7 @@ class ComplexityVisualizer {
                             styleSheet.insertRule(animationCSS, styleSheet.cssRules.length);
                             
                             // Get animation name from the CSS
-                            const animationMatch = animationCSS.match(/animation:\s+([^\\s]+)/);
+                            const animationMatch = animationCSS.match(/animation:\\s+([^\\s]+)/);
                             if (animationMatch && animationMatch[1]) {
                                 catImage.style.animation = animationMatch[1] + ' 2s infinite ease-in-out';
                             }
@@ -788,6 +788,58 @@ class ComplexityVisualizer {
                     display: none;
                 }
                 
+                /* Paw prints and enhanced visual styles */
+                .paw-print {
+                    pointer-events: none;
+                    opacity: 0.3;
+                    transition: opacity 0.2s ease;
+                }
+                
+                .node circle {
+                    transition: fill 0.3s ease, r 0.3s ease, stroke-width 0.3s ease;
+                    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.3));
+                }
+                
+                .node text {
+                    transition: font-size 0.3s ease, fill-opacity 0.3s ease;
+                    font-weight: 500;
+                    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
+                }
+                
+                .graph-filters {
+                    position: absolute;
+                    bottom: 10px;
+                    right: 10px;
+                    background: rgba(0, 0, 0, 0.7);
+                    padding: 10px;
+                    border-radius: 5px;
+                    z-index: 10;
+                    color: white;
+                }
+                
+                .minimap {
+                    position: absolute;
+                    bottom: 70px;
+                    right: 10px;
+                    width: 150px;
+                    height: 150px;
+                    background: rgba(0, 0, 0, 0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 5px;
+                    z-index: 9;
+                    overflow: hidden;
+                }
+                
+                .cat-gradient-node {
+                    stroke-width: 3px;
+                    transition: all 0.3s ease;
+                }
+                
+                @keyframes pawWiggle {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(-10deg); }
+                }
+                
                 /* Add cat theme CSS */
                 ${catThemeCSS}
             </style>
@@ -851,6 +903,35 @@ class ComplexityVisualizer {
                         return '#F44336';
                     };
                     
+                    // Node size based on complexity and importance
+                    const getNodeSize = (complexity, dependencyCount) => {
+                        // Base size on complexity
+                        const baseSize = 15 + complexity * 0.8;
+                        // Adjust for number of connections (in or out)
+                        const connectionBonus = Math.sqrt(dependencyCount) * 2;
+                        return Math.min(45, baseSize + connectionBonus);
+                    };
+                    
+                    // Calculate dependency counts for each node
+                    const dependencyCounts = {};
+                    data.nodes.forEach(node => {
+                        dependencyCounts[node.id] = 0;
+                    });
+                    
+                    data.links.forEach(link => {
+                        if (dependencyCounts[link.source.id] !== undefined) {
+                            dependencyCounts[link.source.id]++;
+                        }
+                        if (dependencyCounts[link.target.id] !== undefined) {
+                            dependencyCounts[link.target.id]++;
+                        }
+                    });
+                    
+                    // Add dependency count to node data
+                    data.nodes.forEach(node => {
+                        node.dependencyCount = dependencyCounts[node.id] || 0;
+                    });
+
                     // Create SVG with zoom support
                     const svg = d3.select('#graph')
                         .append('svg')
@@ -859,15 +940,13 @@ class ComplexityVisualizer {
                         .attr('viewBox', [0, 0, width, height])
                         .attr('style', 'max-width: 100%; height: auto;');
                     
-                    // Add zoom behavior
+                    // Add zoom functionality
                     const zoom = d3.zoom()
                         .scaleExtent([0.1, 4])
                         .on('zoom', (event) => {
                             g.attr('transform', event.transform);
-                            updateZoomLabel(event.transform.k);
                         });
-                    
-                    // Apply zoom to svg
+
                     svg.call(zoom);
                     
                     // Create a group for all elements that should be zoomed
@@ -887,6 +966,44 @@ class ComplexityVisualizer {
                         .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
                         .attr('fill', '#999')
                         .style('stroke', 'none');
+                    
+                    // Create paw prints along the links
+                    const pawPrintsGroup = g.append('g').attr('class', 'paw-prints');
+                    
+                    // Paw print path data (small cat paw SVG)
+                    const pawPrintPath = "M0,0 C1,0.5 2,-0.5 3,0 C4,0.5 5,-0.5 6,0 C6.5,1 6,-0.5 7,0.5 C8,1.5 7,2.5 6,2 C5,1.5 4,3 3,2 C2,1 1,2.5 0,2 C-1,1.5 -1,0.5 0,0";
+                    
+                    // Add paw prints to each link
+                    data.links.forEach(link => {
+                        // Create 2-3 paw prints along each link with different sizes/rotations
+                        const numPaws = 2 + Math.floor(Math.random() * 2);
+                        const linkId = typeof link.source === 'object' ? 
+                            link.source.id + "-" + link.target.id :
+                            link.source + "-" + link.target;
+                        
+                        for (let i = 0; i < numPaws; i++) {
+                            // Position along the path (distribute evenly)
+                            const position = (i + 1) / (numPaws + 1);
+                            
+                            // Random rotation and size variation
+                            const rotation = Math.random() * 360;
+                            const size = 0.8 + Math.random() * 0.4; // 0.8-1.2
+                            
+                            pawPrintsGroup.append('path')
+                                .attr('class', 'paw-print')
+                                .attr('d', pawPrintPath)
+                                .attr('fill', typeof link.target === 'object' ? 
+                                    getNodeColor(link.target.complexity) :
+                                    getNodeColor(data.nodes.find(n => n.id === link.target).complexity))
+                                .attr('transform', 'scale(' + size + ')')
+                                .attr('data-linkId', linkId)
+                                .attr('data-position', position)
+                                .attr('linkId', linkId)
+                                .attr('opacity', 0.3)
+                                .attr('stroke', 'none')
+                                .style('pointer-events', 'none');
+                        }
+                    });
                     
                     // Create force simulation
                     const simulation = d3.forceSimulation(data.nodes)
@@ -909,23 +1026,51 @@ class ComplexityVisualizer {
                         .data(data.nodes)
                         .enter().append('g')
                         .attr('class', 'node')
-                        .on('mouseover', showNodeInfo)
-                        .on('mouseout', hideNodeInfo)
+                        .on('mouseover', highlightConnectedNodes)
+                        .on('mouseout', resetHighlighting)
+                        .on('click', pounceAnimation)
                         .call(d3.drag()
                             .on('start', dragstarted)
                             .on('drag', dragged)
                             .on('end', dragended));
                     
-                    // Add circles to nodes
+                    // Add circles to nodes with gradient fills
                     node.append('circle')
-                        .attr('r', d => Math.min(40, 15 + d.complexity))
-                        .attr('fill', d => getNodeColor(d.complexity));
+                        .attr('class', 'cat-gradient-node')
+                        .attr('r', d => getNodeSize(d.complexity, d.dependencyCount))
+                        .attr('fill', d => {
+                            if (d.complexity <= 5) return 'url(#gradient-low)';
+                            if (d.complexity <= 10) return 'url(#gradient-medium)';
+                            if (d.complexity <= 20) return 'url(#gradient-high)';
+                            return 'url(#gradient-veryhigh)';
+                        })
+                        .attr('stroke', d => getNodeColor(d.complexity))
+                        .attr('stroke-width', 2)
+                        .attr('stroke-opacity', 0.8);
+                    
+                    // Add a hidden larger circle for better hovering
+                    node.append('circle')
+                        .attr('r', d => getNodeSize(d.complexity, d.dependencyCount) + 10)
+                        .attr('fill', 'transparent')
+                        .style('pointer-events', 'all');
+                    
+                    // Add a pounce animation circle (initially hidden)
+                    node.append('circle')
+                        .attr('class', 'pounce-circle')
+                        .attr('r', d => getNodeSize(d.complexity, d.dependencyCount))
+                        .attr('fill', 'rgba(255, 255, 255, 0.5)')
+                        .attr('stroke', '#FFF')
+                        .attr('stroke-width', 1)
+                        .style('opacity', 0)
+                        .style('pointer-events', 'none');
                     
                     // Add text to nodes
                     node.append('text')
                         .attr('dy', 4)
                         .attr('text-anchor', 'middle')
-                        .text(d => d.id);
+                        .text(d => d.id)
+                        .style('pointer-events', 'none')
+                        .attr('class', 'node-text');
                     
                     // Update positions on simulation tick
                     simulation.on('tick', () => {
@@ -935,71 +1080,41 @@ class ComplexityVisualizer {
                             .attr('x2', d => d.target.x)
                             .attr('y2', d => d.target.y);
                         
-                        node
-                            .attr('transform', d => \`translate(\${d.x}, \${d.y})\`);
-                    });
-                    
-                    // Add control button handlers
-                    document.getElementById('zoom-in').addEventListener('click', () => {
-                        svg.transition().duration(300).call(zoom.scaleBy, 1.5);
-                    });
-                    
-                    document.getElementById('zoom-out').addEventListener('click', () => {
-                        svg.transition().duration(300).call(zoom.scaleBy, 0.75);
-                    });
-                    
-                    document.getElementById('zoom-reset').addEventListener('click', () => {
-                        svg.transition().duration(300).call(
-                            zoom.transform,
-                            d3.zoomIdentity.translate(width / 2, height / 2)
-                                .scale(0.75)
-                                .translate(-width / 2, -height / 2)
-                        );
-                    });
-                    
-                    // Set initial zoom level to see the whole graph
-                    svg.call(
-                        zoom.transform,
-                        d3.zoomIdentity.translate(width / 2, height / 2)
-                            .scale(0.75)
-                            .translate(-width / 2, -height / 2)
-                    );
-                    
-                    // Update zoom label
-                    function updateZoomLabel(scale) {
-                        const percent = Math.round(scale * 100);
-                        document.querySelector('.zoom-label').innerText = \`Zoom: \${percent}%\`;
-                    }
-                    
-                    // Show node info
-                    function showNodeInfo(event, d) {
-                        const nodeInfo = document.getElementById('node-info');
-                        // Get the called functions and called by functions
-                        const calls = [];
-                        const calledBy = [];
-                        
-                        data.links.forEach(link => {
-                            if (link.source.id === d.id) {
-                                calls.push(link.target.id);
-                            }
-                            if (link.target.id === d.id) {
-                                calledBy.push(link.source.id);
+                        // Update paw prints positions along the links
+                        pawPrintsGroup.selectAll('.paw-print').each(function() {
+                            const pawPrint = d3.select(this);
+                            const linkId = pawPrint.attr('linkId');
+                            const position = parseFloat(pawPrint.attr('data-position'));
+                            const rotation = Math.random() * 360; // Random rotation for playfulness
+                            
+                            // Find the corresponding link
+                            const sourceTargetIds = linkId.split('-');
+                            const sourceId = sourceTargetIds[0];
+                            const targetId = sourceTargetIds[1];
+                            
+                            // Find the actual nodes
+                            const sourceNode = data.nodes.find(n => n.id === sourceId);
+                            const targetNode = data.nodes.find(n => n.id === targetId);
+                            
+                            if (sourceNode && targetNode) {
+                                // Calculate position along the path
+                                const x = sourceNode.x + (targetNode.x - sourceNode.x) * position;
+                                const y = sourceNode.y + (targetNode.y - sourceNode.y) * position;
+                                
+                                // Calculate angle for proper rotation along the path
+                                const angle = Math.atan2(targetNode.y - sourceNode.y, targetNode.x - sourceNode.x) * 180 / Math.PI;
+                                
+                                // Set the transform with proper positioning and rotation
+                                const scales = pawPrint.attr('transform').match(/scale\(([^)]+)\)/);
+                                if (scales && scales[1]) {
+                                    pawPrint.attr('transform', 'translate(' + x + ', ' + y + ') rotate(' + angle + ' ' + rotation + ') scale(' + scales[1] + ')');
+                                }
                             }
                         });
                         
-                        nodeInfo.innerHTML = \`
-                            <strong>\${d.id}</strong><br>
-                            <small>Complexity: \${d.complexity}</small><br>
-                            \${calls.length > 0 ? \`<small>Calls: \${calls.join(', ')}</small><br>\` : ''}
-                            \${calledBy.length > 0 ? \`<small>Called by: \${calledBy.join(', ')}</small>\` : ''}
-                        \`;
-                        nodeInfo.style.display = 'block';
-                    }
-                    
-                    // Hide node info
-                    function hideNodeInfo() {
-                        document.getElementById('node-info').style.display = 'none';
-                    }
+                        node
+                            .attr('transform', d => 'translate(' + d.x + ', ' + d.y + ')');
+                    });
                     
                     // Drag functions
                     function dragstarted(event, d) {
@@ -1020,29 +1135,127 @@ class ComplexityVisualizer {
                         // d.fy = null;
                     }
                     
-                    // Enable double-click to zoom
-                    svg.on('dblclick.zoom', (event) => {
-                        const pt = d3.pointer(event);
-                        svg.transition().duration(300).call(
-                            zoom.translateTo, pt[0], pt[1]
-                        ).transition().call(
-                            zoom.scaleBy, 1.5
-                        );
-                    });
-                    
-                    // Listen for window resize to update the graph dimensions
-                    window.addEventListener('resize', () => {
-                        const newWidth = container.clientWidth;
-                        const newHeight = container.clientHeight;
+                    // Highlight connected nodes function
+                    function highlightConnectedNodes(event, d) {
+                        // Show node info
+                        document.getElementById('node-info').innerHTML = 
+                            '<strong>' + d.id + '</strong><br>' +
+                            '<small>Complexity: ' + d.complexity + '</small><br>';
+                        document.getElementById('node-info').style.display = 'block';
                         
-                        svg.attr('width', newWidth)
-                           .attr('height', newHeight)
-                           .attr('viewBox', [0, 0, newWidth, newHeight]);
-                           
-                        simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2))
-                                 .alpha(0.3)
-                                 .restart();
-                    });
+                        // Get connected nodes
+                        const connectedNodeIds = new Set();
+                        
+                        // Find all nodes connected to the hovered node
+                        data.links.forEach(link => {
+                            if (typeof link.source === 'object') {
+                                if (link.source.id === d.id) {
+                                    connectedNodeIds.add(typeof link.target === 'object' ? link.target.id : link.target);
+                                }
+                                if (link.target.id === d.id) {
+                                    connectedNodeIds.add(link.source.id);
+                                }
+                            } else {
+                                if (link.source === d.id) {
+                                    connectedNodeIds.add(typeof link.target === 'object' ? link.target.id : link.target);
+                                }
+                                if (link.target === d.id) {
+                                    connectedNodeIds.add(link.source);
+                                }
+                            }
+                        });
+                        
+                        // Dim all nodes and links
+                        node.selectAll('circle')
+                            .filter(function() { return !this.classList.contains('pounce-circle'); })
+                            .transition().duration(200)
+                            .attr('fill-opacity', nodeData => 
+                                nodeData.id === d.id || connectedNodeIds.has(nodeData.id) ? 1.0 : 0.2);
+                        
+                        node.selectAll('text')
+                            .transition().duration(200)
+                            .attr('fill-opacity', nodeData => 
+                                nodeData.id === d.id || connectedNodeIds.has(nodeData.id) ? 1.0 : 0.2);
+                        
+                        // Highlight connected links
+                        link.transition().duration(200)
+                            .attr('stroke-opacity', linkData => {
+                                const sourceId = typeof linkData.source === 'object' ? linkData.source.id : linkData.source;
+                                const targetId = typeof linkData.target === 'object' ? linkData.target.id : linkData.target;
+                                return sourceId === d.id || targetId === d.id ? 0.8 : 0.1;
+                            })
+                            .attr('stroke-width', linkData => {
+                                const sourceId = typeof linkData.source === 'object' ? linkData.source.id : linkData.source;
+                                const targetId = typeof linkData.target === 'object' ? linkData.target.id : linkData.target;
+                                return sourceId === d.id || targetId === d.id ? 2 : 1;
+                            });
+                    }
+                    
+                    // Reset node and link highlighting
+                    function resetHighlighting() {
+                        // Hide node info
+                        document.getElementById('node-info').style.display = 'none';
+                        
+                        // Reset all nodes
+                        node.selectAll('circle')
+                            .filter(function() { return !this.classList.contains('pounce-circle'); })
+                            .transition().duration(200)
+                            .attr('fill-opacity', 1.0);
+                        
+                        node.selectAll('text')
+                            .transition().duration(200)
+                            .attr('fill-opacity', 1.0);
+                        
+                        // Reset all links
+                        link.transition().duration(200)
+                            .attr('stroke-opacity', 0.4)
+                            .attr('stroke-width', 1);
+                    }
+                    
+                    // Add a cat "pounce" animation to nodes when clicked
+                    function pounceAnimation(event, d) {
+                        // Select the pounce circle for this node
+                        const pounceCircle = d3.select(this).select('.pounce-circle');
+                        
+                        // Play the pounce animation
+                        pounceCircle
+                            .transition()
+                            .duration(100)
+                            .attr('r', function() {
+                                const baseR = d3.select(this.parentNode).select('circle').attr('r');
+                                return parseFloat(baseR) * 1.5;
+                            })
+                            .style('opacity', 0.6)
+                            .transition()
+                            .duration(300)
+                            .attr('r', function() {
+                                const baseR = d3.select(this.parentNode).select('circle').attr('r');
+                                return parseFloat(baseR) * 2;
+                            })
+                            .style('opacity', 0)
+                            .on('end', function() {
+                                // Toggle expanded state for this node
+                                if (!d.expanded) {
+                                    // Play a small bounce animation on the main circle
+                                    d3.select(this.parentNode).select('circle:first-of-type')
+                                        .transition()
+                                        .duration(100)
+                                        .attr('r', function() { 
+                                            return parseFloat(d3.select(this).attr('r')) * 1.2; 
+                                        })
+                                        .transition()
+                                        .duration(100)
+                                        .attr('r', function() { 
+                                            return parseFloat(d3.select(this).attr('r')) / 1.2; 
+                                        });
+                                    
+                                    d.expanded = true;
+                                } else {
+                                    // Collapse the node
+                                    d.expanded = false;
+                                }
+                            });
+                    }
                 })();
                 
                 // Add theme change handler
