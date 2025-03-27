@@ -2,7 +2,7 @@
 
 CodeWhiskers is a VS Code extension that helps developers quickly understand unfamiliar code through intuitive explanations, visualizations, and contextual insights. The extension uses a cute, kitten-themed UI with "whiskers" that represent how the tool analyzes and explores code structure.
 
-![CodeWhiskers Logo](resources/cat-icon.svg)
+## 🐱 CodeWhiskers
 
 ## Features
 

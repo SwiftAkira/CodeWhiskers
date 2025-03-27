@@ -4,6 +4,7 @@ const explanationEngine = require('./src/explanationEngine');
 const uiLayer = require('./src/uiLayer');
 const ComplexityVisualizer = require('./src/complexityVisualizer');
 const CatThemeManager = require('./src/catThemeManager');
+const PerformanceAnalyzer = require('./src/performanceAnalyzer');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -13,7 +14,7 @@ function activate(context) {
 
     try {
         // Initialize components with error handling
-        let parser, explainer, ui, complexityVisualizer, catThemeManager;
+        let parser, explainer, ui, complexityVisualizer, catThemeManager, performanceAnalyzer;
         
         try {
             parser = new Parser();
@@ -53,6 +54,23 @@ function activate(context) {
         } catch (error) {
             console.error('Error initializing CatThemeManager:', error);
             catThemeManager = null;
+        }
+        
+        try {
+            performanceAnalyzer = new PerformanceAnalyzer();
+            console.log('PerformanceAnalyzer initialized successfully');
+        } catch (error) {
+            console.error('Error initializing PerformanceAnalyzer:', error);
+            performanceAnalyzer = null;
+        }
+        
+        // Connect components that need references to each other
+        if (complexityVisualizer && catThemeManager) {
+            complexityVisualizer.setCatThemeManager(catThemeManager);
+        }
+        
+        if (performanceAnalyzer && catThemeManager) {
+            performanceAnalyzer.setCatThemeManager(catThemeManager);
         }
 
         // Register commands with safety checks
@@ -355,16 +373,69 @@ function activate(context) {
             }
         });
 
-        // Add to subscriptions
-        context.subscriptions.push(explainCodeCommand);
-        context.subscriptions.push(traceVariableCommand);
-        context.subscriptions.push(suggestDocumentationCommand);
-        context.subscriptions.push(analyzeFunctionsCommand);
-        context.subscriptions.push(openSettingsCommand);
-        context.subscriptions.push(changeHandler);
-        context.subscriptions.push(analyzeComplexityCommand);
-        context.subscriptions.push(visualizeDependenciesCommand);
-        context.subscriptions.push(changeCatThemeCommand);
+        // Add command for performance hotspot detection
+        const detectPerformanceCommand = vscode.commands.registerCommand('codewhiskers.detectPerformance', async () => {
+            const loadingMessage = vscode.window.setStatusBarMessage('CodeWhiskers: Detecting performance hotspots...');
+            
+            try {
+                if (!parser || !performanceAnalyzer) {
+                    vscode.window.showErrorMessage('CodeWhiskers is not fully initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showWarningMessage('No active editor found. Please open a file.');
+                    return;
+                }
+                
+                const document = editor.document;
+                const fileContent = document.getText();
+                const language = document.languageId;
+                const fileName = document.fileName.split('/').pop();
+                
+                // Use setTimeout to prevent UI blocking
+                setTimeout(async () => {
+                    try {
+                        // First method: Use the parser to detect performance hotspots
+                        const hotspots = parser.detectPerformanceHotspots(fileContent, language);
+                        
+                        // Second method: Use the performance analyzer for more in-depth analysis
+                        const performanceIssues = performanceAnalyzer.analyzePerformance(fileContent, language);
+                        
+                        if (hotspots.length === 0 && performanceIssues.length === 0) {
+                            vscode.window.showInformationMessage('No performance hotspots detected! Your code looks optimized.');
+                            return;
+                        }
+                        
+                        // Show performance analysis
+                        performanceAnalyzer.showPerformanceAnalysis(performanceIssues, fileName);
+                    } catch (error) {
+                        console.error('Error detecting performance hotspots:', error);
+                        vscode.window.showErrorMessage(`Error detecting performance hotspots: ${error.message}`);
+                    } finally {
+                        loadingMessage.dispose();
+                    }
+                }, 0);
+            } catch (error) {
+                loadingMessage.dispose();
+                console.error('Error in performance detection command:', error);
+                vscode.window.showErrorMessage(`Error: ${error.message}`);
+            }
+        });
+
+        // Register commands
+        context.subscriptions.push(
+            explainCodeCommand,
+            traceVariableCommand,
+            suggestDocumentationCommand,
+            analyzeFunctionsCommand,
+            openSettingsCommand,
+            analyzeComplexityCommand,
+            visualizeDependenciesCommand,
+            changeCatThemeCommand,
+            detectPerformanceCommand
+        );
         
         // Make theme manager available to UI components
         if (ui && catThemeManager) {

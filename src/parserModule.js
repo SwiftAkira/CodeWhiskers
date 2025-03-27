@@ -1129,6 +1129,287 @@ class Parser {
             return { level: 'very high', color: '#F44336', description: 'Highly complex, difficult to maintain, refactoring recommended' };
         }
     }
+
+    /**
+     * Detect performance hotspots in code
+     * @param {string} code - File content
+     * @param {string} language - Programming language
+     * @returns {object[]} Array of performance hotspots
+     */
+    detectPerformanceHotspots(code, language) {
+        if (!this.supportedLanguages.includes(language)) {
+            throw new Error(`Language '${language}' is not currently supported`);
+        }
+        
+        // Define performance hotspot patterns
+        const hotspots = [];
+        
+        // Analyze functions for performance issues
+        const functions = this.findFunctions(code, language);
+        
+        for (const func of functions) {
+            const functionCode = code.substring(func.range.start, func.range.end);
+            const functionName = func.name;
+            const hotspotInfo = this._analyzeCodePerformance(functionCode, functionName, language);
+            
+            if (hotspotInfo.length > 0) {
+                // Calculate absolute line numbers for the hotspots
+                const functionStartLine = code.substring(0, func.range.start).split('\n').length;
+                
+                hotspotInfo.forEach(hotspot => {
+                    // Adjust line number to be absolute in the file
+                    hotspot.line += functionStartLine - 1;
+                    hotspots.push(hotspot);
+                });
+            }
+        }
+        
+        // Add global scope analysis
+        const globalHotspots = this._analyzeGlobalPerformance(code, language);
+        hotspots.push(...globalHotspots);
+        
+        return hotspots;
+    }
+    
+    /**
+     * Analyze code for performance issues
+     * @private
+     */
+    _analyzeCodePerformance(code, functionName, language) {
+        const hotspots = [];
+        const lines = code.split('\n');
+        
+        // Check for nested loops (O(n²) or worse time complexity)
+        const nestedLoopPattern = /for\s*\([^{]*{[^}]*for\s*\(/g;
+        let match;
+        
+        while ((match = nestedLoopPattern.exec(code)) !== null) {
+            // Calculate line number
+            const upToMatch = code.substring(0, match.index);
+            const lineNumber = upToMatch.split('\n').length;
+            
+            hotspots.push({
+                type: 'nested_loop',
+                severity: 'high',
+                description: 'Nested loop detected (potential O(n²) time complexity)',
+                suggestion: 'Consider restructuring to avoid nested loops',
+                function: functionName,
+                line: lineNumber,
+                code: match[0].substring(0, 50) + '...'
+            });
+        }
+        
+        // Check for inefficient operations inside loops
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Check if this line contains a loop start
+            if (/\b(for|while)\s*\(/.test(line)) {
+                // Look for inefficient operations in the next few lines
+                const endIndex = Math.min(i + 10, lines.length);
+                let braceCount = 0;
+                let loopBody = '';
+                
+                // Collect the loop body
+                for (let j = i; j < endIndex; j++) {
+                    loopBody += lines[j] + '\n';
+                    braceCount += (lines[j].match(/{/g) || []).length;
+                    braceCount -= (lines[j].match(/}/g) || []).length;
+                    
+                    // If braces are balanced, we've reached the end of the loop
+                    if (braceCount === 0 && j > i) {
+                        break;
+                    }
+                }
+                
+                // Check for DOM operations inside loop
+                if (/document\.querySelector|document\.getElementById|document\.getElement/.test(loopBody)) {
+                    hotspots.push({
+                        type: 'dom_in_loop',
+                        severity: 'high',
+                        description: 'DOM operation inside loop',
+                        suggestion: 'Cache DOM elements outside the loop',
+                        function: functionName,
+                        line: i + 1,
+                        code: line.trim()
+                    });
+                }
+                
+                // Check for array resizing operations inside loop
+                if (/\.push\(|\.splice\(|\.shift\(|\.unshift\(/.test(loopBody)) {
+                    hotspots.push({
+                        type: 'array_resize_in_loop',
+                        severity: 'medium',
+                        description: 'Array resizing operation inside loop',
+                        suggestion: 'Pre-allocate arrays when possible',
+                        function: functionName,
+                        line: i + 1,
+                        code: line.trim()
+                    });
+                }
+                
+                // Check for object creation inside loop
+                if (/new\s+[A-Z][a-zA-Z]*\(/.test(loopBody)) {
+                    hotspots.push({
+                        type: 'object_creation_in_loop',
+                        severity: 'medium',
+                        description: 'Object instantiation inside loop',
+                        suggestion: 'Move object creation outside the loop or reuse objects',
+                        function: functionName,
+                        line: i + 1,
+                        code: line.trim()
+                    });
+                }
+                
+                // Check for function calls inside loop
+                const functionCallsInLoop = loopBody.match(/\b[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(/g) || [];
+                if (functionCallsInLoop.length > 3) {
+                    hotspots.push({
+                        type: 'many_function_calls_in_loop',
+                        severity: 'low',
+                        description: 'Multiple function calls inside loop',
+                        suggestion: 'Consider inlining or optimizing function calls',
+                        function: functionName,
+                        line: i + 1,
+                        code: line.trim()
+                    });
+                }
+            }
+        }
+        
+        // Check for potentially slow regular expressions
+        const regexPattern = /\/(?!\/)(.*?[+*{}|].*?)\/[gimuy]*/g;
+        while ((match = regexPattern.exec(code)) !== null) {
+            // Check if it's a complex regex
+            if (match[1].length > 20 || /[+*]{2,}/.test(match[1])) {
+                // Calculate line number
+                const upToMatch = code.substring(0, match.index);
+                const lineNumber = upToMatch.split('\n').length;
+                
+                hotspots.push({
+                    type: 'complex_regex',
+                    severity: 'medium',
+                    description: 'Complex regular expression',
+                    suggestion: 'Simplify regex or use regex caching',
+                    function: functionName,
+                    line: lineNumber,
+                    code: match[0]
+                });
+            }
+        }
+        
+        // Check for excessive string concatenation
+        const concatPattern = /(\s*\+=\s*['"][^'"]*['"]){3,}/g;
+        while ((match = concatPattern.exec(code)) !== null) {
+            // Calculate line number
+            const upToMatch = code.substring(0, match.index);
+            const lineNumber = upToMatch.split('\n').length;
+            
+            hotspots.push({
+                type: 'string_concat',
+                severity: 'low',
+                description: 'Excessive string concatenation with += operator',
+                suggestion: 'Use array.join() or template literals instead',
+                function: functionName,
+                line: lineNumber,
+                code: match[0].substring(0, 50) + '...'
+            });
+        }
+        
+        return hotspots;
+    }
+    
+    /**
+     * Analyze global scope for performance issues
+     * @private
+     */
+    _analyzeGlobalPerformance(code, language) {
+        const hotspots = [];
+        
+        // Check for large array/object literals
+        const largeObjectPattern = /[{[]([^}{\][]|\[[^}{\][]]*]*){100,}[}\]]/g;
+        let match;
+        
+        while ((match = largeObjectPattern.exec(code)) !== null) {
+            // Calculate line number
+            const upToMatch = code.substring(0, match.index);
+            const lineNumber = upToMatch.split('\n').length;
+            
+            hotspots.push({
+                type: 'large_literal',
+                severity: 'medium',
+                description: 'Large array/object literal',
+                suggestion: 'Consider loading data dynamically or chunking',
+                function: 'global',
+                line: lineNumber,
+                code: match[0].substring(0, 50) + '...'
+            });
+        }
+        
+        // Check for global event listeners without cleanup
+        const eventListenerPattern = /addEventListener\(['"]([^'"]+)['"]/g;
+        const removeListenerPattern = /removeEventListener\(['"]([^'"]+)['"]/g;
+        
+        const addEvents = [];
+        const removeEvents = [];
+        
+        while ((match = eventListenerPattern.exec(code)) !== null) {
+            addEvents.push(match[1]);
+        }
+        
+        while ((match = removeListenerPattern.exec(code)) !== null) {
+            removeEvents.push(match[1]);
+        }
+        
+        // Find uncleaned event listeners
+        if (addEvents.length > removeEvents.length) {
+            // Simple heuristic: if there are more adds than removes
+            hotspots.push({
+                type: 'uncleaned_event_listeners',
+                severity: 'medium',
+                description: 'Potential memory leak: more event listeners added than removed',
+                suggestion: 'Ensure all event listeners are removed when no longer needed',
+                function: 'global',
+                line: 1,
+                code: 'addEventListener detected without matching removeEventListener'
+            });
+        }
+        
+        // Check for synchronous XMLHttpRequest
+        if (/new\s+XMLHttpRequest\([^)]*\);\s*[^]*?\.open\([^)]*false[^)]*\)/g.test(code)) {
+            hotspots.push({
+                type: 'sync_xhr',
+                severity: 'high',
+                description: 'Synchronous XMLHttpRequest detected',
+                suggestion: 'Use asynchronous requests to avoid blocking the main thread',
+                function: 'global',
+                line: 1,
+                code: 'XMLHttpRequest with synchronous flag'
+            });
+        }
+        
+        // Check for console.log statements in production code
+        const consolePattern = /console\.(log|debug|info|warn|error)\(/g;
+        let consoleCount = 0;
+        
+        while ((match = consolePattern.exec(code)) !== null) {
+            consoleCount++;
+        }
+        
+        if (consoleCount > 5) {
+            hotspots.push({
+                type: 'excessive_console',
+                severity: 'low',
+                description: `${consoleCount} console statements detected`,
+                suggestion: 'Remove console statements from production code',
+                function: 'global',
+                line: 1,
+                code: 'console.* statements'
+            });
+        }
+        
+        return hotspots;
+    }
 }
 
 module.exports = Parser; 
