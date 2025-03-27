@@ -49,6 +49,14 @@
           "light": "resources/light/analyze.svg",
           "dark": "resources/dark/analyze.svg"
         }
+      },
+      {
+        "command": "codewhiskers.openSettings",
+        "title": "CodeWhiskers: Open Settings",
+        "icon": {
+          "light": "resources/light/settings.svg",
+          "dark": "resources/dark/settings.svg"
+        }
       }
     ],
     "menus": {
@@ -81,6 +89,19 @@
           "command": "codewhiskers.explainCode",
           "group": "navigation",
           "when": "editorLangId == javascript || editorLangId == typescript"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codewhiskers.openSettings",
+          "group": "CodeWhiskers"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "codewhiskers.openSettings",
+          "when": "view == codewhiskers-explorer || view == codewhiskers-documentation",
+          "group": "navigation"
         }
       ]
     },
@@ -117,6 +138,31 @@
             "high"
           ],
           "description": "Frequency of whisker animations"
+        },
+        "codewhiskers.enableEmojis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable emoji icons in the UI"
+        },
+        "codewhiskers.enableAnimations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable animations in the UI"
+        },
+        "codewhiskers.enableDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable code decorations in the editor"
+        },
+        "codewhiskers.enableAutoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh analysis when code changes"
+        },
+        "codewhiskers.showCatImages": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show cat images in the explanation panels"
         }
       }
     },
