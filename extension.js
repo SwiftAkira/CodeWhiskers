@@ -3,6 +3,7 @@ const Parser = require('./src/parserModule');
 const explanationEngine = require('./src/explanationEngine');
 const uiLayer = require('./src/uiLayer');
 const ComplexityVisualizer = require('./src/complexityVisualizer');
+const CatThemeManager = require('./src/catThemeManager');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -12,7 +13,7 @@ function activate(context) {
 
     try {
         // Initialize components with error handling
-        let parser, explainer, ui, complexityVisualizer;
+        let parser, explainer, ui, complexityVisualizer, catThemeManager;
         
         try {
             parser = new Parser();
@@ -44,6 +45,14 @@ function activate(context) {
         } catch (error) {
             console.error('Error initializing ComplexityVisualizer:', error);
             complexityVisualizer = null;
+        }
+        
+        try {
+            catThemeManager = new CatThemeManager(context);
+            console.log('CatThemeManager initialized successfully');
+        } catch (error) {
+            console.error('Error initializing CatThemeManager:', error);
+            catThemeManager = null;
         }
 
         // Register commands with safety checks
@@ -327,6 +336,25 @@ function activate(context) {
             }
         });
 
+        // Add command to change cat theme
+        let changeCatThemeCommand = vscode.commands.registerCommand('codewhiskers.changeCatTheme', async () => {
+            try {
+                if (!catThemeManager) {
+                    vscode.window.showErrorMessage('CodeWhiskers cat theme manager is not initialized yet. Please try again in a moment.');
+                    return;
+                }
+                
+                // Show theme picker
+                await catThemeManager.showThemePicker();
+                
+                // Play a sound when theme changes
+                catThemeManager.playSound('meow');
+            } catch (error) {
+                console.error('Error changing cat theme:', error);
+                vscode.window.showErrorMessage(`Error changing cat theme: ${error.message}`);
+            }
+        });
+
         // Add to subscriptions
         context.subscriptions.push(explainCodeCommand);
         context.subscriptions.push(traceVariableCommand);
@@ -336,9 +364,20 @@ function activate(context) {
         context.subscriptions.push(changeHandler);
         context.subscriptions.push(analyzeComplexityCommand);
         context.subscriptions.push(visualizeDependenciesCommand);
+        context.subscriptions.push(changeCatThemeCommand);
+        
+        // Make theme manager available to UI components
+        if (ui && catThemeManager) {
+            ui.setCatThemeManager(catThemeManager);
+        }
+        
+        if (complexityVisualizer && catThemeManager) {
+            complexityVisualizer.setCatThemeManager(catThemeManager);
+        }
+
     } catch (error) {
         console.error('Fatal error during CodeWhiskers activation:', error);
-        vscode.window.showErrorMessage('CodeWhiskers could not be activated properly. Some features may not work.');
+        vscode.window.showErrorMessage(`Fatal error initializing CodeWhiskers: ${error.message}`);
     }
 }
 

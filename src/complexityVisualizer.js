@@ -7,6 +7,15 @@ const vscode = require('vscode');
 class ComplexityVisualizer {
     constructor() {
         this._panel = null;
+        this._catThemeManager = null;
+    }
+
+    /**
+     * Set the cat theme manager
+     * @param {CatThemeManager} manager - The cat theme manager
+     */
+    setCatThemeManager(manager) {
+        this._catThemeManager = manager;
     }
 
     /**
@@ -125,6 +134,12 @@ class ComplexityVisualizer {
             color: f.complexityLevel.color
         })).slice(0, 10); // Show top 10 most complex functions
         
+        // Get cat theme elements
+        const catEmoji = this._catThemeManager ? this._catThemeManager.getCatEmoji() : '🐱';
+        const catAnimation = this._catThemeManager ? this._catThemeManager.getCatAnimation() : '';
+        const catThemeCSS = this._catThemeManager ? this._catThemeManager.getThemeCSS() : '';
+        const backgroundElements = this._catThemeManager ? this._catThemeManager.getBackgroundElements() : '';
+        
         // Generate HTML
         return `
         <!DOCTYPE html>
@@ -134,42 +149,87 @@ class ComplexityVisualizer {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>CodeWhiskers Complexity Analysis</title>
             <style>
+                :root {
+                    --primary-color: var(--vscode-button-background);
+                    --primary-text: var(--vscode-button-foreground);
+                    --panel-bg: var(--vscode-editor-background);
+                    --panel-text: var(--vscode-editor-foreground);
+                    --border-color: var(--vscode-panel-border);
+                    --card-bg: var(--vscode-editor-inactiveSelectionBackground);
+                    --hover-bg: var(--vscode-list-hoverBackground);
+                    --animation-duration: 800ms;
+                }
+                
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
                     padding: 20px;
-                    color: var(--vscode-foreground);
-                    background-color: var(--vscode-editor-background);
+                    color: var(--panel-text);
+                    background-color: var(--panel-bg);
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: opacity var(--animation-duration) ease, transform var(--animation-duration) ease;
                 }
+                
+                body.loaded {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                
                 h1, h2, h3 {
-                    color: var(--vscode-editor-foreground);
+                    color: var(--panel-text);
                 }
+                
                 .summary-metrics {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 20px;
                     margin-bottom: 30px;
                 }
+                
                 .metric-card {
-                    background-color: var(--vscode-editor-inactiveSelectionBackground);
+                    background-color: var(--card-bg);
                     border-radius: 8px;
                     padding: 15px;
                     flex: 1;
                     min-width: 150px;
                     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                    opacity: 0;
+                    animation: slide-up 0.5s ease forwards;
                 }
+                
+                .metric-card:nth-child(1) { animation-delay: 0.1s; }
+                .metric-card:nth-child(2) { animation-delay: 0.2s; }
+                .metric-card:nth-child(3) { animation-delay: 0.3s; }
+                .metric-card:nth-child(4) { animation-delay: 0.4s; }
+                
+                .metric-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+                }
+                
                 .metric-value {
                     font-size: 24px;
                     font-weight: bold;
                     margin: 10px 0;
+                    opacity: 0;
+                    animation: count-up 1s ease forwards;
+                    animation-delay: 0.7s;
                 }
+                
                 .metric-label {
                     font-size: 14px;
                     opacity: 0.8;
                 }
+                
                 .chart-container {
                     margin-top: 30px;
                     height: 300px;
+                    opacity: 0;
+                    animation: fade-in 0.5s ease forwards;
+                    animation-delay: 0.5s;
                 }
+                
                 .bar-chart {
                     display: flex;
                     height: 250px;
@@ -177,16 +237,21 @@ class ComplexityVisualizer {
                     gap: 10px;
                     margin-top: 20px;
                 }
+                
                 .bar {
                     flex: 1;
                     min-width: 30px;
                     position: relative;
-                    transition: all 0.3s ease;
                     cursor: pointer;
+                    transform: scaleY(0);
+                    animation: grow-bar 1s ease forwards;
+                    transform-origin: bottom;
                 }
+                
                 .bar:hover {
-                    opacity: 0.8;
+                    filter: brightness(1.2);
                 }
+                
                 .bar-label {
                     transform: rotate(-45deg);
                     transform-origin: left top;
@@ -198,14 +263,21 @@ class ComplexityVisualizer {
                     overflow: hidden;
                     text-overflow: ellipsis;
                     max-width: 100px;
+                    opacity: 0;
+                    animation: fade-in 0.5s ease forwards;
                 }
+                
                 .complexity-distribution {
                     display: flex;
                     margin-top: 30px;
                     height: 40px;
                     border-radius: 4px;
                     overflow: hidden;
+                    opacity: 0;
+                    animation: fade-in 0.5s ease forwards;
+                    animation-delay: 0.3s;
                 }
+                
                 .complexity-segment {
                     display: flex;
                     align-items: center;
@@ -213,116 +285,291 @@ class ComplexityVisualizer {
                     color: white;
                     font-weight: bold;
                     font-size: 12px;
+                    width: 0%;
+                    transition: width 1.5s ease-out;
                 }
+                
                 table {
                     width: 100%;
                     border-collapse: collapse;
                     margin-top: 30px;
+                    opacity: 0;
+                    animation: fade-in 0.5s ease forwards;
+                    animation-delay: 0.8s;
                 }
+                
                 th, td {
                     text-align: left;
                     padding: 12px;
-                    border-bottom: 1px solid var(--vscode-panel-border);
+                    border-bottom: 1px solid var(--border-color);
                 }
+                
                 th {
-                    background-color: var(--vscode-editor-inactiveSelectionBackground);
+                    background-color: var(--card-bg);
                 }
+                
+                tr {
+                    transition: background-color 0.2s ease;
+                }
+                
                 tr:hover {
-                    background-color: var(--vscode-list-hoverBackground);
+                    background-color: var(--hover-bg);
                 }
+                
                 .complexity-badge {
                     display: inline-block;
                     padding: 3px 8px;
                     border-radius: 12px;
                     color: white;
                     font-size: 12px;
+                    transition: transform 0.2s ease;
                 }
+                
+                .complexity-badge:hover {
+                    transform: scale(1.1);
+                }
+                
                 .cat-image {
                     width: 80px;
                     margin-top: 15px;
+                    font-size: 60px;
+                    line-height: 1;
+                    ${catAnimation}
                 }
+                
                 .cat-container {
                     text-align: center;
-                    margin-bottom: 20px;
+                    margin-bottom: 30px;
+                    opacity: 0;
+                    animation: fade-in 0.5s ease forwards;
                 }
+                
+                .section {
+                    margin-top: 40px;
+                    opacity: 0;
+                    transform: translateY(20px);
+                    animation: slide-up 0.6s ease forwards;
+                }
+                
+                .section:nth-child(1) { animation-delay: 0.1s; }
+                .section:nth-child(2) { animation-delay: 0.3s; }
+                .section:nth-child(3) { animation-delay: 0.5s; }
+                .section:nth-child(4) { animation-delay: 0.7s; }
+                
+                @keyframes bounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-10px); }
+                }
+                
+                @keyframes slide-up {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                
+                @keyframes fade-in {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                @keyframes grow-bar {
+                    from { transform: scaleY(0); }
+                    to { transform: scaleY(1); }
+                }
+                
+                @keyframes count-up {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                
+                .theme-toggle {
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: var(--primary-color);
+                    color: var(--primary-text);
+                    border: none;
+                    border-radius: 4px;
+                    padding: 5px 10px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    transition: transform 0.2s ease;
+                }
+                
+                .theme-toggle:hover {
+                    transform: scale(1.05);
+                }
+                
+                .tooltip {
+                    position: fixed;
+                    background-color: var(--card-bg);
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    padding: 10px;
+                    font-size: 12px;
+                    z-index: 100;
+                    pointer-events: none;
+                    opacity: 0;
+                    transition: opacity 0.2s ease;
+                    max-width: 250px;
+                }
+                
+                /* Add cat theme CSS */
+                ${catThemeCSS}
             </style>
         </head>
         <body>
+            ${backgroundElements}
+            
             <div class="cat-container">
-                <img class="cat-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtc2l6ZT0iNzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfkLo8L3RleHQ+PC9zdmc+" alt="Code Inspector Cat" />
+                <div class="cat-image">${catEmoji}</div>
                 <h1>Code Complexity Analysis</h1>
                 <p>File: ${fileName}</p>
             </div>
             
-            <div class="summary-metrics">
-                <div class="metric-card">
-                    <div class="metric-label">Functions Analyzed</div>
-                    <div class="metric-value">${totalFunctions}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Average Complexity</div>
-                    <div class="metric-value">${avgComplexity.toFixed(1)}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Max Complexity</div>
-                    <div class="metric-value">${maxComplexity}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Average Function Length</div>
-                    <div class="metric-value">${avgLineCount.toFixed(1)} lines</div>
-                </div>
-            </div>
-            
-            <h2>Complexity Distribution</h2>
-            <div class="complexity-distribution">
-                ${this._generateDistributionSegment(complexityLevels.low, totalFunctions, '#4CAF50', 'Low')}
-                ${this._generateDistributionSegment(complexityLevels.moderate, totalFunctions, '#FFC107', 'Moderate')}
-                ${this._generateDistributionSegment(complexityLevels.high, totalFunctions, '#FF9800', 'High')}
-                ${this._generateDistributionSegment(complexityLevels.veryHigh, totalFunctions, '#F44336', 'Very High')}
-            </div>
-            
-            <h2>Top Complex Functions</h2>
-            <div class="chart-container">
-                <div class="bar-chart">
-                    ${this._generateBarChart(complexityChartData, maxComplexity)}
+            <div class="section">
+                <h2>Summary Metrics</h2>
+                <div class="summary-metrics">
+                    <div class="metric-card">
+                        <div class="metric-label">Functions Analyzed</div>
+                        <div class="metric-value" data-value="${totalFunctions}">${totalFunctions}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Average Complexity</div>
+                        <div class="metric-value" data-value="${avgComplexity.toFixed(1)}">${avgComplexity.toFixed(1)}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Max Complexity</div>
+                        <div class="metric-value" data-value="${maxComplexity}">${maxComplexity}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Average Function Length</div>
+                        <div class="metric-value" data-value="${avgLineCount.toFixed(1)}">${avgLineCount.toFixed(1)} lines</div>
+                    </div>
                 </div>
             </div>
             
-            <h2>Functions Details</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Function</th>
-                        <th>Lines</th>
-                        <th>Cyclomatic Complexity</th>
-                        <th>Nesting Level</th>
-                        <th>Parameters</th>
-                        <th>Recommendation</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${sortedFunctions.map(func => `
-                    <tr>
-                        <td>${func.name}</td>
-                        <td>${func.lineCount}</td>
-                        <td>
-                            <span class="complexity-badge" style="background-color: ${func.complexityLevel.color}">
-                                ${func.cyclomaticComplexity}
-                            </span>
-                        </td>
-                        <td>${func.nestingLevel}</td>
-                        <td>${func.parameterCount}</td>
-                        <td>${func.complexityLevel.description}</td>
-                    </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <div class="section">
+                <h2>Complexity Distribution</h2>
+                <div class="complexity-distribution">
+                    ${this._generateDistributionSegment(complexityLevels.low, totalFunctions, '#4CAF50', 'Low')}
+                    ${this._generateDistributionSegment(complexityLevels.moderate, totalFunctions, '#FFC107', 'Moderate')}
+                    ${this._generateDistributionSegment(complexityLevels.high, totalFunctions, '#FF9800', 'High')}
+                    ${this._generateDistributionSegment(complexityLevels.veryHigh, totalFunctions, '#F44336', 'Very High')}
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Top Complex Functions</h2>
+                <div class="chart-container">
+                    <div class="bar-chart">
+                        ${this._generateBarChart(complexityChartData, maxComplexity)}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Functions Details</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Function</th>
+                            <th>Lines</th>
+                            <th>Cyclomatic Complexity</th>
+                            <th>Nesting Level</th>
+                            <th>Parameters</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedFunctions.map(func => `
+                        <tr>
+                            <td>${func.name}</td>
+                            <td>${func.lineCount}</td>
+                            <td>
+                                <span class="complexity-badge" style="background-color: ${func.complexityLevel.color}">
+                                    ${func.cyclomaticComplexity}
+                                </span>
+                            </td>
+                            <td>${func.nestingLevel}</td>
+                            <td>${func.parameterCount}</td>
+                            <td>${func.complexityLevel.description}</td>
+                        </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="tooltip" id="tooltip"></div>
             
             <script>
                 (function() {
-                    // Function to handle bar click
-                    const bars = document.querySelectorAll('.bar');
-                    bars.forEach(bar => {
+                    // Initialize
+                    const vscode = acquireVsCodeApi();
+                    const tooltip = document.getElementById('tooltip');
+                    
+                    // Apply animations after small delay
+                    setTimeout(() => {
+                        document.body.classList.add('loaded');
+                        
+                        // Set distribution widths
+                        const segments = document.querySelectorAll('.complexity-segment');
+                        segments.forEach(segment => {
+                            const width = segment.getAttribute('data-width');
+                            segment.style.width = width;
+                        });
+                        
+                        // Animate bars with staggered delay
+                        const bars = document.querySelectorAll('.bar');
+                        bars.forEach((bar, index) => {
+                            bar.style.animationDelay = (0.8 + index * 0.1) + 's';
+                            bar.querySelector('.bar-label').style.animationDelay = (1.3 + index * 0.1) + 's';
+                        });
+                        
+                        // Animate counting metrics
+                        animateMetricCounting();
+                    }, 100);
+                    
+                    // Function to animate metric values with counting effect
+                    function animateMetricCounting() {
+                        const countElements = document.querySelectorAll('.metric-value');
+                        countElements.forEach(el => {
+                            const value = parseFloat(el.getAttribute('data-value'));
+                            const isDecimal = el.textContent.includes('.');
+                            const isLines = el.textContent.includes('lines');
+                            
+                            let startValue = 0;
+                            const duration = 1500;
+                            const startTime = performance.now();
+                            
+                            function updateCount(timestamp) {
+                                const elapsed = timestamp - startTime;
+                                const progress = Math.min(elapsed / duration, 1);
+                                
+                                // Easing function for smoother animation
+                                const easedProgress = 1 - Math.pow(1 - progress, 3);
+                                
+                                const currentValue = startValue + (value - startValue) * easedProgress;
+                                
+                                if (isDecimal) {
+                                    el.textContent = isLines ? 
+                                        currentValue.toFixed(1) + ' lines' : 
+                                        currentValue.toFixed(1);
+                                } else {
+                                    el.textContent = Math.round(currentValue);
+                                }
+                                
+                                if (progress < 1) {
+                                    requestAnimationFrame(updateCount);
+                                }
+                            }
+                            
+                            requestAnimationFrame(updateCount);
+                        });
+                    }
+                    
+                    // Handle bar clicks
+                    document.querySelectorAll('.bar').forEach(bar => {
+                        // Add click handler
                         bar.addEventListener('click', (event) => {
                             const functionName = bar.getAttribute('data-function');
                             // Send message to extension
@@ -331,11 +578,81 @@ class ComplexityVisualizer {
                                 functionName: functionName
                             });
                         });
+                        
+                        // Add tooltip on hover
+                        bar.addEventListener('mouseenter', (event) => {
+                            const functionName = bar.getAttribute('data-function');
+                            tooltip.textContent = functionName;
+                            tooltip.style.opacity = '1';
+                            updateTooltipPosition(event);
+                        });
+                        
+                        bar.addEventListener('mousemove', updateTooltipPosition);
+                        
+                        bar.addEventListener('mouseleave', () => {
+                            tooltip.style.opacity = '0';
+                        });
                     });
                     
-                    // Initialize webview
-                    const vscode = acquireVsCodeApi();
+                    // Update tooltip position
+                    function updateTooltipPosition(event) {
+                        tooltip.style.left = (event.pageX + 10) + 'px';
+                        tooltip.style.top = (event.pageY + 10) + 'px';
+                    }
+                    
+                    // Add hover effects for table rows
+                    document.querySelectorAll('tr').forEach(row => {
+                        row.addEventListener('mouseenter', () => {
+                            row.style.backgroundColor = 'var(--hover-bg)';
+                        });
+                        
+                        row.addEventListener('mouseleave', () => {
+                            row.style.backgroundColor = '';
+                        });
+                    });
                 })();
+                
+                // Add theme change handler
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    if (message.command === 'updateTheme') {
+                        document.querySelector('.cat-image').innerHTML = message.catEmoji;
+                        
+                        // Apply new animation
+                        const catImage = document.querySelector('.cat-image');
+                        catImage.style.animation = '';
+                        setTimeout(() => {
+                            const styleSheet = document.styleSheets[0];
+                            const animationCSS = message.catAnimation;
+                            
+                            // Add the new animation styles
+                            styleSheet.insertRule(animationCSS, styleSheet.cssRules.length);
+                            
+                            // Get animation name from the CSS
+                            const animationMatch = animationCSS.match(/animation:\s+([^\\s]+)/);
+                            if (animationMatch && animationMatch[1]) {
+                                catImage.style.animation = animationMatch[1] + ' 2s infinite ease-in-out';
+                            }
+                            
+                            // Apply theme CSS
+                            const themeStyle = document.createElement('style');
+                            themeStyle.textContent = message.catThemeCSS;
+                            document.head.appendChild(themeStyle);
+                            
+                            // Update background elements
+                            const oldBackground = document.querySelector('.floating-elements');
+                            if (oldBackground) {
+                                oldBackground.remove();
+                            }
+                            
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = message.backgroundElements;
+                            while (tempDiv.firstChild) {
+                                document.body.appendChild(tempDiv.firstChild);
+                            }
+                        }, 100);
+                    }
+                });
             </script>
         </body>
         </html>
@@ -347,6 +664,12 @@ class ComplexityVisualizer {
      * @private
      */
     _generateDependencyGraphHTML(dependencyData, fileName) {
+        // Get cat theme elements
+        const catEmoji = this._catThemeManager ? this._catThemeManager.getCatEmoji() : '🐱';
+        const catAnimation = this._catThemeManager ? this._catThemeManager.getCatAnimation() : '';
+        const catThemeCSS = this._catThemeManager ? this._catThemeManager.getThemeCSS() : '';
+        const backgroundElements = this._catThemeManager ? this._catThemeManager.getBackgroundElements() : '';
+        
         return `
         <!DOCTYPE html>
         <html lang="en">
@@ -385,6 +708,9 @@ class ComplexityVisualizer {
                 .cat-image {
                     width: 80px;
                     margin-top: 15px;
+                    font-size: 60px;
+                    line-height: 1;
+                    ${catAnimation}
                 }
                 .cat-container {
                     text-align: center;
@@ -406,11 +732,16 @@ class ComplexityVisualizer {
                     height: 15px;
                     border-radius: 50%;
                 }
+                
+                /* Add cat theme CSS */
+                ${catThemeCSS}
             </style>
         </head>
         <body>
+            ${backgroundElements}
+            
             <div class="cat-container">
-                <img class="cat-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtc2l6ZT0iNzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfkLo8L3RleHQ+PC9zdmc+" alt="Code Inspector Cat" />
+                <div class="cat-image">${catEmoji}</div>
                 <h1>Function Dependency Graph</h1>
                 <p>File: ${fileName}</p>
             </div>
@@ -540,6 +871,48 @@ class ComplexityVisualizer {
                         d.fy = null;
                     }
                 })();
+                
+                // Add theme change handler
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    if (message.command === 'updateTheme') {
+                        document.querySelector('.cat-image').innerHTML = message.catEmoji;
+                        
+                        // Apply new animation
+                        const catImage = document.querySelector('.cat-image');
+                        catImage.style.animation = '';
+                        setTimeout(() => {
+                            const styleSheet = document.styleSheets[0];
+                            const animationCSS = message.catAnimation;
+                            
+                            // Add the new animation styles
+                            styleSheet.insertRule(animationCSS, styleSheet.cssRules.length);
+                            
+                            // Get animation name from the CSS
+                            const animationMatch = animationCSS.match(/animation:\s+([^\\s]+)/);
+                            if (animationMatch && animationMatch[1]) {
+                                catImage.style.animation = animationMatch[1] + ' 2s infinite ease-in-out';
+                            }
+                            
+                            // Apply theme CSS
+                            const themeStyle = document.createElement('style');
+                            themeStyle.textContent = message.catThemeCSS;
+                            document.head.appendChild(themeStyle);
+                            
+                            // Update background elements
+                            const oldBackground = document.querySelector('.floating-elements');
+                            if (oldBackground) {
+                                oldBackground.remove();
+                            }
+                            
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = message.backgroundElements;
+                            while (tempDiv.firstChild) {
+                                document.body.appendChild(tempDiv.firstChild);
+                            }
+                        }, 100);
+                    }
+                });
             </script>
         </body>
         </html>
@@ -554,7 +927,7 @@ class ComplexityVisualizer {
         const percentage = total > 0 ? (count / total * 100) : 0;
         if (percentage === 0) return '';
         return `
-        <div class="complexity-segment" style="width: ${percentage}%; background-color: ${color};">
+        <div class="complexity-segment" style="background-color: ${color};" data-width="${percentage}%">
             ${Math.round(percentage)}% ${label}
         </div>
         `;
@@ -565,16 +938,32 @@ class ComplexityVisualizer {
      * @private
      */
     _generateBarChart(data, maxValue) {
-        return data.map(item => {
+        return data.map((item, index) => {
             const heightPercentage = (item.value / maxValue * 100);
             return `
             <div class="bar" 
                  style="height: ${heightPercentage}%; background-color: ${item.color};"
-                 data-function="${item.name}">
+                 data-function="${item.name}" data-index="${index}">
                 <div class="bar-label">${item.name}</div>
             </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Update the cat theme in panels
+     */
+    updateTheme() {
+        if (!this._panel || !this._catThemeManager) return;
+        
+        // Send message to webview to update theme
+        this._panel.webview.postMessage({
+            command: 'updateTheme',
+            catEmoji: this._catThemeManager.getCatEmoji(),
+            catAnimation: this._catThemeManager.getCatAnimation(),
+            catThemeCSS: this._catThemeManager.getThemeCSS(),
+            backgroundElements: this._catThemeManager.getBackgroundElements()
+        });
     }
 }
 

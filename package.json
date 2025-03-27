@@ -78,6 +78,14 @@
           "light": "resources/light/trace.svg",
           "dark": "resources/dark/trace.svg"
         }
+      },
+      {
+        "command": "codewhiskers.changeCatTheme",
+        "title": "CodeWhiskers: Change Cat Theme",
+        "icon": {
+          "light": "resources/light/settings.svg",
+          "dark": "resources/dark/settings.svg"
+        }
       }
     ],
     "menus": {
@@ -134,15 +142,8 @@
       ],
       "commandPalette": [
         {
-          "command": "codewhiskers.openSettings",
+          "command": "codewhiskers.changeCatTheme",
           "group": "CodeWhiskers"
-        }
-      ],
-      "view/title": [
-        {
-          "command": "codewhiskers.openSettings",
-          "when": "view == codewhiskers-explorer || view == codewhiskers-documentation",
-          "group": "navigation"
         }
       ]
     },
@@ -219,6 +220,60 @@
             "typescriptreact"
           ],
           "description": "Default syntax highlighting language for code snippets"
+        },
+        "codewhiskers.catTheme": {
+          "type": "string",
+          "default": "default",
+          "enum": [
+            "default",
+            "grumpy",
+            "sleepy",
+            "surprise",
+            "love",
+            "sassy",
+            "nerd",
+            "cool",
+            "ninja"
+          ],
+          "enumDescriptions": [
+            "Default cat theme",
+            "Grumpy cat with attitude",
+            "Sleepy, relaxed cat",
+            "Surprised, wide-eyed cat",
+            "Loving, heart-eyed cat",
+            "Sassy, dramatic cat",
+            "Nerdy, intelligent cat",
+            "Cool cat with sunglasses",
+            "Stealthy ninja cat"
+          ],
+          "description": "Choose your cat theme character"
+        },
+        "codewhiskers.enableCatSounds": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable cat sound effects (meows, purrs) on actions"
+        },
+        "codewhiskers.enableSeasonalThemes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable seasonal themes (Halloween, Winter, etc.)"
+        },
+        "codewhiskers.uiStyle": {
+          "type": "string",
+          "default": "modern",
+          "enum": [
+            "modern",
+            "minimal",
+            "playful",
+            "professional"
+          ],
+          "enumDescriptions": [
+            "Modern UI with animations and effects",
+            "Minimal UI with fewer animations",
+            "Playful UI with more animations and cat elements",
+            "Professional UI with subtle animations"
+          ],
+          "description": "UI style for visualizations and explanations"
         }
       }
     },
@@ -245,19 +300,16 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run webpack-prod",
-    "webpack": "webpack --mode development",
-    "webpack-dev": "webpack --mode development --watch",
-    "webpack-prod": "webpack --mode production",
-    "lint": "eslint .",
-    "test": "node ./test/runTest.js",
-    "package": "vsce package",
-    "publish": "vsce publish",
-    "start": "npm run webpack-dev",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "test-compile": "tsc -p ./"
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "webpack": "webpack --mode development"
   },
   "dependencies": {
     "@types/node": "^16.0.0",
