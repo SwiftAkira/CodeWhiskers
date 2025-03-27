@@ -1,0 +1,194 @@
+{
+  "name": "codewhiskers",
+  "displayName": "CodeWhiskers",
+  "description": "Understanding unfamiliar code through intuitive explanations with a kitten-themed UI",
+  "version": "0.1.0",
+  "publisher": "codewhiskers",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codewhiskers.explainCode",
+        "title": "CodeWhiskers: Explain Selected Code",
+        "icon": {
+          "light": "resources/light/explain.svg",
+          "dark": "resources/dark/explain.svg"
+        }
+      },
+      {
+        "command": "codewhiskers.traceVariable",
+        "title": "CodeWhiskers: Trace Variable",
+        "icon": {
+          "light": "resources/light/trace.svg",
+          "dark": "resources/dark/trace.svg"
+        }
+      },
+      {
+        "command": "codewhiskers.suggestDocumentation",
+        "title": "CodeWhiskers: Suggest Documentation",
+        "icon": {
+          "light": "resources/light/document.svg",
+          "dark": "resources/dark/document.svg"
+        }
+      },
+      {
+        "command": "codewhiskers.analyzeFunctions",
+        "title": "CodeWhiskers: Analyze Function Behavior",
+        "icon": {
+          "light": "resources/light/analyze.svg",
+          "dark": "resources/dark/analyze.svg"
+        }
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection && editorTextFocus",
+          "command": "codewhiskers.explainCode",
+          "group": "CodeWhiskers"
+        },
+        {
+          "when": "editorHasSelection && editorTextFocus",
+          "command": "codewhiskers.traceVariable",
+          "group": "CodeWhiskers"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "codewhiskers.suggestDocumentation",
+          "group": "navigation",
+          "when": "editorLangId == javascript || editorLangId == typescript"
+        },
+        {
+          "command": "codewhiskers.analyzeFunctions",
+          "group": "navigation",
+          "when": "editorLangId == javascript || editorLangId == typescript"
+        }
+      ],
+      "editor/title/run": [
+        {
+          "command": "codewhiskers.explainCode",
+          "group": "navigation",
+          "when": "editorLangId == javascript || editorLangId == typescript"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodeWhiskers",
+      "properties": {
+        "codewhiskers.explanationStyle": {
+          "type": "string",
+          "default": "conversational",
+          "enum": [
+            "conversational",
+            "technical",
+            "detailed"
+          ],
+          "description": "Style of code explanations"
+        },
+        "codewhiskers.uiTheme": {
+          "type": "string",
+          "default": "tabby",
+          "enum": [
+            "tabby",
+            "siamese",
+            "calico",
+            "black"
+          ],
+          "description": "Kitten theme for UI elements"
+        },
+        "codewhiskers.animationFrequency": {
+          "type": "string",
+          "default": "medium",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "description": "Frequency of whisker animations"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codewhiskers-sidebar",
+          "title": "CodeWhiskers",
+          "icon": "resources/cat-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codewhiskers-sidebar": [
+        {
+          "id": "codewhiskers-explorer",
+          "name": "Code Explorer"
+        },
+        {
+          "id": "codewhiskers-documentation",
+          "name": "Documentation Hints"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run webpack-prod",
+    "webpack": "webpack --mode development",
+    "webpack-dev": "webpack --mode development --watch",
+    "webpack-prod": "webpack --mode production",
+    "lint": "eslint .",
+    "test": "node ./test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "start": "npm run webpack-dev",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "test-compile": "tsc -p ./"
+  },
+  "dependencies": {
+    "@types/node": "^16.0.0",
+    "vscode": "^1.1.37"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "@typescript-eslint/eslint-plugin": "^4.31.1",
+    "@typescript-eslint/parser": "^4.31.1",
+    "copy-webpack-plugin": "^13.0.0",
+    "eslint": "^7.32.0",
+    "glob": "^11.0.1",
+    "mocha": "^11.1.0",
+    "typescript": "^4.4.3",
+    "vscode-test": "^1.6.1",
+    "webpack": "^5.52.1",
+    "webpack-cli": "^4.8.0"
+  },
+  "keywords": [
+    "code",
+    "understanding",
+    "explanation",
+    "documentation",
+    "visualization"
+  ],
+  "author": "CodeWhiskers Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codewhiskers/codewhiskers.git"
+  },
+  "bugs": {
+    "url": "https://github.com/codewhiskers/codewhiskers/issues"
+  },
+  "homepage": "https://github.com/codewhiskers/codewhiskers#readme"
+}
