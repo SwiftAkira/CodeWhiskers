@@ -77,6 +77,31 @@
         "command": "whiskercode.showQuickActions",
         "title": "🐱 WhiskerCode: Show Quick Actions",
         "category": "WhiskerCode"
+      },
+      {
+        "command": "whiskercode.showLearningPath",
+        "title": "🐱 WhiskerCode: Show Learning Path",
+        "category": "WhiskerCode"
+      },
+      {
+        "command": "whiskercode.analyzeCode",
+        "title": "🐱 WhiskerCode: Analyze My Coding Patterns",
+        "category": "WhiskerCode"
+      },
+      {
+        "command": "whiskercode.startChallenge",
+        "title": "🐱 WhiskerCode: Start Coding Challenge",
+        "category": "WhiskerCode"
+      },
+      {
+        "command": "whiskercode.resetLearningData",
+        "title": "🐱 WhiskerCode: Reset Learning Data",
+        "category": "WhiskerCode"
+      },
+      {
+        "command": "whiskercode.showQuickLearningPath",
+        "title": "🐱 WhiskerCode: Quick Access Learning Path",
+        "category": "WhiskerCode"
       }
     ],
     "keybindings": [
@@ -102,6 +127,12 @@
         "command": "whiskercode.analyzeComplexity",
         "key": "ctrl+shift+c",
         "mac": "cmd+shift+c",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "whiskercode.showQuickLearningPath",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l",
         "when": "editorTextFocus"
       }
     ],
@@ -131,45 +162,37 @@
           "when": "editorTextFocus",
           "command": "whiskercode.detectPerformance",
           "group": "WhiskerCode"
-        }
-      ],
-      "editor/title": [
-        {
-          "command": "whiskercode.suggestDocumentation",
-          "group": "navigation@10",
-          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
         },
         {
-          "command": "whiskercode.analyzeFunctions",
-          "group": "9_cutcopypaste@1",
-          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
+          "when": "editorTextFocus",
+          "command": "whiskercode.showLearningPath",
+          "group": "WhiskerCode"
         },
         {
-          "command": "whiskercode.analyzeComplexity",
-          "group": "9_cutcopypaste@2",
-          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
-        },
-        {
-          "command": "whiskercode.visualizeDependencies",
-          "group": "9_cutcopypaste@3",
-          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
-        },
-        {
-          "command": "whiskercode.detectPerformance",
-          "group": "9_cutcopypaste@4",
-          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == javascriptreact || editorLangId == typescriptreact"
-        }
-      ],
-      "editor/title/run": [
-        {
-          "command": "whiskercode.explainCode",
-          "group": "navigation",
-          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python || editorLangId == java || editorLangId == csharp || editorLangId == javascriptreact || editorLangId == typescriptreact"
+          "when": "editorTextFocus",
+          "command": "whiskercode.showQuickLearningPath",
+          "group": "WhiskerCode@1"
         }
       ],
       "commandPalette": [
         {
           "command": "whiskercode.changeCatTheme",
+          "group": "WhiskerCode"
+        },
+        {
+          "command": "whiskercode.showLearningPath",
+          "group": "WhiskerCode"
+        },
+        {
+          "command": "whiskercode.analyzeCode",
+          "group": "WhiskerCode"
+        },
+        {
+          "command": "whiskercode.startChallenge",
+          "group": "WhiskerCode"
+        },
+        {
+          "command": "whiskercode.resetLearningData",
           "group": "WhiskerCode"
         }
       ]
@@ -301,6 +324,27 @@
             "Professional UI with subtle animations"
           ],
           "description": "UI style for visualizations and explanations"
+        },
+        "whiskercode.enableLearningPath": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the WhiskerCode Learning Path feature"
+        },
+        "whiskercode.showCompletedChallenges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show completed challenges in the learning path"
+        },
+        "whiskercode.learningPathAnalysisFrequency": {
+          "type": "string",
+          "default": "weekly",
+          "enum": [
+            "session",
+            "daily",
+            "weekly",
+            "manual"
+          ],
+          "description": "How often to re-analyze code for the learning path"
         }
       }
     },

@@ -1,4 +1,5 @@
 const vscode = require('vscode');
+const path = require('path');
 
 /**
  * UILayer for CodeWhiskers
@@ -12,6 +13,7 @@ class UILayer {
         this.sidebarProviders = {};
         this.initialized = false;
         this._catThemeManager = null;
+        this.learningPathButton = null;
         
         // Set default settings before trying to load
         this.settings = {
@@ -22,7 +24,8 @@ class UILayer {
             enableAnimations: true,
             enableDecorations: true,
             enableAutoRefresh: true,
-            showCatImages: true
+            showCatImages: true,
+            showLearningButton: true
         };
         
         try {
@@ -65,7 +68,8 @@ class UILayer {
                 enableAnimations: config.get('enableAnimations', true),
                 enableDecorations: config.get('enableDecorations', true),
                 enableAutoRefresh: config.get('enableAutoRefresh', true),
-                showCatImages: config.get('showCatImages', true)
+                showCatImages: config.get('showCatImages', true),
+                showLearningButton: config.get('showLearningButton', true)
             };
         } catch (error) {
             // If settings retrieval fails, use defaults
@@ -78,7 +82,8 @@ class UILayer {
                 enableAnimations: true,
                 enableDecorations: true,
                 enableAutoRefresh: true,
-                showCatImages: true
+                showCatImages: true,
+                showLearningButton: true
             };
         }
         
@@ -131,6 +136,13 @@ class UILayer {
                         margin: '0 5px 0 0'
                     } : {}
                 });
+            }
+            
+            // Update learning path button visibility
+            if (this.settings.showLearningButton) {
+                this.createLearningPathButton();
+            } else {
+                this.disposeLearningPathButton();
             }
         } catch (error) {
             console.error('Error applying settings to UI:', error);
@@ -198,13 +210,236 @@ class UILayer {
             // Initialize sidebar providers if needed
             this.initializeSidebarProviders();
             
-            // Mark initialization as complete
+            // Create learning path button
+            this.createLearningPathButton();
+            
+            // Create and add learning path command button to editor
+            this.createEditorLearningPathButton();
+            
+            // Set initialized flag
             this.initialized = true;
         } catch (error) {
             console.error('Error initializing UI:', error);
-            // Ensure we don't try to use uninitialized UI components
-            this.initialized = false;
         }
+    }
+    
+    /**
+     * Create a learning path button in the editor
+     */
+    createEditorLearningPathButton() {
+        try {
+            // Create a decoration type for the learning path button
+            this.decorationTypes.learningPathButton = vscode.window.createTextEditorDecorationType({
+                after: {
+                    contentText: '🎓',
+                    backgroundColor: 'rgba(0, 122, 204, 0.2)',
+                    border: '1px solid #007ACC',
+                    margin: '0 0 0 10px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '10px',
+                    textDecoration: 'none; cursor: pointer',
+                }
+            });
+            
+            // Apply the decoration to visible editors
+            vscode.window.visibleTextEditors.forEach(editor => {
+                this._applyLearningPathButtonDecoration(editor);
+            });
+            
+            // Set up event listener for when editor changes
+            vscode.window.onDidChangeActiveTextEditor(editor => {
+                if (editor) {
+                    this._applyLearningPathButtonDecoration(editor);
+                }
+            });
+            
+            // Set up event listener for when text document changes
+            vscode.workspace.onDidChangeTextDocument(event => {
+                // Get all editors for this document
+                vscode.window.visibleTextEditors
+                    .filter(editor => editor.document.uri.toString() === event.document.uri.toString())
+                    .forEach(editor => {
+                        this._applyLearningPathButtonDecoration(editor);
+                    });
+            });
+        } catch (error) {
+            console.error('Error creating editor learning path button:', error);
+        }
+    }
+    
+    /**
+     * Apply learning path button decoration to an editor
+     * @param {vscode.TextEditor} editor - The editor to add the button to
+     */
+    _applyLearningPathButtonDecoration(editor) {
+        if (!editor || !this.settings.showLearningButton) {
+            return;
+        }
+        
+        try {
+            // Place the button at the first line
+            const range = new vscode.Range(
+                new vscode.Position(0, 0),
+                new vscode.Position(0, 0)
+            );
+            
+            // Apply the decoration
+            editor.setDecorations(this.decorationTypes.learningPathButton, [{
+                range,
+                hoverMessage: new vscode.MarkdownString('Click to open WhiskerCode Learning Path')
+            }]);
+            
+            // Set up command for when the decoration is clicked
+            const commandDisposable = vscode.commands.registerCommand('whiskercode.learningPathButtonClicked', () => {
+                vscode.commands.executeCommand('whiskercode.showQuickLearningPath');
+            });
+            
+            // Add to context subscriptions
+            this.context.subscriptions.push(commandDisposable);
+        } catch (error) {
+            console.error('Error applying learning path button decoration:', error);
+        }
+    }
+    
+    /**
+     * Creates a floating action button to access the learning path
+     */
+    createLearningPathButton() {
+        try {
+            if (!this.settings.showLearningButton) {
+                this.disposeLearningPathButton();
+                return;
+            }
+            
+            // Create webview panel for the button
+            if (!this.learningPathButton) {
+                this.learningPathButton = vscode.window.createWebviewPanel(
+                    'whiskercodeLearningButton',
+                    'Learning Path',
+                    { viewColumn: vscode.ViewColumn.Two, preserveFocus: true },
+                    {
+                        enableScripts: true,
+                        retainContextWhenHidden: true,
+                        localResourceRoots: [vscode.Uri.file(path.join(this.context.extensionPath, 'resources'))]
+                    }
+                );
+                
+                // Update content
+                this.learningPathButton.webview.html = this._generateLearningButtonHtml();
+                
+                // Handle messages from the webview
+                this.learningPathButton.webview.onDidReceiveMessage(message => {
+                    if (message.command === 'openLearningPath') {
+                        vscode.commands.executeCommand('whiskercode.showQuickLearningPath');
+                    }
+                });
+                
+                // Clean up on dispose
+                this.learningPathButton.onDidDispose(() => {
+                    this.learningPathButton = null;
+                });
+            } else {
+                // Just update the content if it already exists
+                this.learningPathButton.webview.html = this._generateLearningButtonHtml();
+            }
+        } catch (error) {
+            console.error('Error creating learning path button:', error);
+        }
+    }
+    
+    /**
+     * Dispose the learning path button
+     */
+    disposeLearningPathButton() {
+        if (this.learningPathButton) {
+            this.learningPathButton.dispose();
+            this.learningPathButton = null;
+        }
+    }
+    
+    /**
+     * Generate HTML for the learning path button
+     * @returns {string} HTML content
+     * @private
+     */
+    _generateLearningButtonHtml() {
+        // Get path to cat image
+        const catImagePath = this.context.asAbsolutePath(path.join('resources', 'cats', 'logo.svg'));
+        const catImageUri = vscode.Uri.file(catImagePath);
+        const catImageSrc = this.learningPathButton.webview.asWebviewUri(catImageUri);
+        
+        return `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Learning Path</title>
+            <style>
+                body {
+                    padding: 0;
+                    margin: 0;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                    background-color: transparent;
+                }
+                .floating-button {
+                    position: absolute;
+                    bottom: 20px;
+                    right: 20px;
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 50%;
+                    background-color: #007ACC;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    overflow: hidden;
+                }
+                .floating-button:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+                }
+                .floating-button img {
+                    width: 40px;
+                    height: 40px;
+                }
+                .button-label {
+                    position: absolute;
+                    background-color: #333;
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    white-space: nowrap;
+                    top: -40px;
+                    right: 0;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                }
+                .floating-button:hover .button-label {
+                    opacity: 1;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="floating-button" id="learningButton">
+                <img src="${catImageSrc}" alt="Learning Path">
+                <div class="button-label">Learning Path</div>
+            </div>
+            
+            <script>
+                const vscode = acquireVsCodeApi();
+                document.getElementById('learningButton').addEventListener('click', () => {
+                    vscode.postMessage({
+                        command: 'openLearningPath'
+                    });
+                });
+            </script>
+        </body>
+        </html>`;
     }
     
     /**
@@ -2769,6 +3004,12 @@ class UILayer {
                         </div>
                         <div class="setting-description">Show special themes for holidays and seasons</div>
                         
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="showLearningButton" name="showLearningButton" ${this.settings.showLearningButton ? 'checked' : ''}>
+                            <label for="showLearningButton">Show Learning Path Button</label>
+                        </div>
+                        <div class="setting-description">Show the learning path button on the UI</div>
+                        
                         <div class="buttons-row">
                             <button type="submit">Save Settings</button>
                             <button type="button" id="reset-button" class="secondary">Reset to Defaults</button>
@@ -2826,7 +3067,8 @@ class UILayer {
                                 enableAutoRefresh: formData.get('enableAutoRefresh') === 'on',
                                 showCatImages: formData.get('showCatImages') === 'on',
                                 enableCatSounds: formData.get('enableCatSounds') === 'on',
-                                enableSeasonalThemes: formData.get('enableSeasonalThemes') === 'on'
+                                enableSeasonalThemes: formData.get('enableSeasonalThemes') === 'on',
+                                showLearningButton: formData.get('showLearningButton') === 'on'
                             };
                             
                             vscode.postMessage({

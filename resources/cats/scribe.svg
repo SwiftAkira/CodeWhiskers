@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+    <!-- Scribe Kitty - The documentation-focused cat -->
+    <circle cx="100" cy="100" r="80" fill="#C19A6B" />
+    <!-- Face -->
+    <circle cx="75" cy="90" r="10" fill="#FFF" />
+    <circle cx="125" cy="90" r="10" fill="#FFF" />
+    <circle cx="75" cy="90" r="5" fill="#000" />
+    <circle cx="125" cy="90" r="5" fill="#000" />
+    <!-- Whiskers -->
+    <line x1="40" y1="110" x2="70" y2="105" stroke="#000" stroke-width="1" />
+    <line x1="40" y1="120" x2="70" y2="115" stroke="#000" stroke-width="1" />
+    <line x1="160" y1="110" x2="130" y2="105" stroke="#000" stroke-width="1" />
+    <line x1="160" y1="120" x2="130" y2="115" stroke="#000" stroke-width="1" />
+    <!-- Thoughtful Expression -->
+    <path d="M90,115 Q100,125 110,115" fill="none" stroke="#000" stroke-width="2" />
+    <!-- Ears -->
+    <polygon points="60,40 45,20 75,30" fill="#C19A6B" stroke="#000" />
+    <polygon points="140,40 155,20 125,30" fill="#C19A6B" stroke="#000" />
+    <!-- Quill / Pen -->
+    <path d="M130,130 L150,150" stroke="#000" stroke-width="2" />
+    <path d="M150,150 L145,153 L140,145 L148,140 Z" fill="#000" />
+    <!-- Parchment / Paper -->
+    <path d="M60,130 C60,120 100,120 100,130 L100,170 C100,180 60,180 60,170 Z" fill="#FFF8DC" stroke="#000" />
+    <line x1="70" y1="140" x2="90" y2="140" stroke="#000" stroke-width="1" />
+    <line x1="70" y1="150" x2="90" y2="150" stroke="#000" stroke-width="1" />
+    <line x1="70" y1="160" x2="90" y2="160" stroke="#000" stroke-width="1" />
+    <!-- Reading Glasses -->
+    <circle cx="90" cy="90" r="12" fill="none" stroke="#000" stroke-width="1" />
+    <line x1="90" y1="78" x2="90" y2="70" stroke="#000" stroke-width="1" />
+</svg> 

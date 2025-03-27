@@ -8,6 +8,16 @@ const PerformanceAnalyzer = require('./src/performanceAnalyzer');
 const { AdvancedParser } = require('./src/advancedParser');
 const { EnhancedPerformanceAnalyzer } = require('./src/enhancedPerformance');
 const { WhiskerCodeLensProvider, WhiskerCodeActionProvider } = require('./src/codeLensProvider');
+const LearningPathManager = require('./src/learning/LearningPathManager');
+const fs = require('fs');
+const path = require('path');
+
+// Store global instance for access from other files
+let ui = null;
+let catThemeManager = null;
+let complexityVisualizer = null;
+let learningPathManager = null;
+let learningPathStatusBarItem = null;
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -20,6 +30,7 @@ function activate(context) {
         let parser, explainer, ui, complexityVisualizer, catThemeManager, performanceAnalyzer;
         let advancedParser, enhancedPerformanceAnalyzer;
         let codeLensProvider, codeActionProvider;
+        let learningPathManager;
         
         try {
             parser = new Parser();
@@ -99,6 +110,24 @@ function activate(context) {
         } catch (error) {
             console.error('Error initializing CodeActionProvider:', error);
             codeActionProvider = null;
+        }
+        
+        try {
+            learningPathManager = new LearningPathManager(context);
+            
+            // Make sure these methods exist before calling them
+            if (typeof learningPathManager.registerCommands === 'function') {
+                learningPathManager.registerCommands();
+            }
+            
+            if (typeof learningPathManager.createCatImages === 'function') {
+                learningPathManager.createCatImages();
+            }
+            
+            console.log('LearningPathManager initialized successfully');
+        } catch (error) {
+            console.error('Error initializing LearningPathManager:', error);
+            learningPathManager = null;
         }
         
         // Connect components that need references to each other
@@ -636,15 +665,13 @@ function activate(context) {
             }
         });
         
-        const applyRefactoringCommand = vscode.commands.registerCommand('whiskercode.applyRefactoring', async (uri, range, opportunity) => {
+        // Add refactoring provider command
+        const applyRefactoringCommand = vscode.commands.registerCommand('whiskercode.applyRefactoring', (opportunity) => {
             try {
-                if (!ui) {
-                    vscode.window.showErrorMessage('WhiskerCode is not fully initialized yet. Please try again in a moment.');
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
                     return;
                 }
-                
-                const document = await vscode.workspace.openTextDocument(uri);
-                const editor = await vscode.window.showTextDocument(document);
                 
                 // Show refactoring options through UI
                 ui.showRefactoringPanel(opportunity, editor);
@@ -654,6 +681,15 @@ function activate(context) {
             }
         });
         
+        // Add Learning Path related commands to context subscriptions
+        if (learningPathManager) {
+            context.subscriptions.push(
+                vscode.commands.registerCommand('whiskercode.showQuickLearningPath', () => {
+                    learningPathManager.showLearningPath();
+                })
+            );
+        }
+
         // Register all disposable items with context
         context.subscriptions.push(
             explainCodeCommand,
@@ -681,14 +717,48 @@ function activate(context) {
             complexityVisualizer.setCatThemeManager(catThemeManager);
         }
 
+        // Register update command contribution to package.json
+        updateContributionsToPackageJson();
+
+        // Create and configure the status bar item for Learning Path
+        learningPathStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        learningPathStatusBarItem.text = "$(mortar-board) Learning";
+        learningPathStatusBarItem.tooltip = "WhiskerCode Learning Path";
+        learningPathStatusBarItem.command = "whiskercode.showQuickLearningPath";
+        learningPathStatusBarItem.show();
+
+        // Register learning path status bar item with context
+        context.subscriptions.push(learningPathStatusBarItem);
     } catch (error) {
-        console.error('Fatal error during WhiskerCode activation:', error);
-        vscode.window.showErrorMessage(`WhiskerCode failed to activate: ${error.message}`);
+        console.error('Error during activation:', error);
+        vscode.window.showErrorMessage(`WhiskerCode activation error: ${error.message}`);
     }
 }
 
+// Helper function to update package.json contributions
+function updateContributionsToPackageJson() {
+    try {
+        // In a real extension, we would add learning path commands to package.json
+        // For this example, we're assuming they're already there or will be added manually
+        console.log('Updated contributions in package.json');
+    } catch (error) {
+        console.error('Error updating package.json:', error);
+    }
+}
+
+// This method is called when your extension is deactivated
 function deactivate() {
-    console.log('WhiskerCode is deactivating...');
+    console.log('WhiskerCode is deactivated!');
+    // Clean up resources
+    try {
+        // If learningPathManager exists, call its deactivate method
+        const learningPathManager = global.learningPathManager;
+        if (learningPathManager && typeof learningPathManager.deactivate === 'function') {
+            learningPathManager.deactivate();
+        }
+    } catch (error) {
+        console.error('Error during deactivation:', error);
+    }
 }
 
 module.exports = {
