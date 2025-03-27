@@ -15,8 +15,11 @@ function efficientSearch(array, target) {
 
 // Bad performance example - O(n²) complexity with nested loops
 function inefficientSearch(array, target) {
-  for (let i = 0; i < array.length; i++) {
-    for (let j = 0; j < array.length; j++) {
+  const seen = new Set();
+for (let i = 0; i < array.length; i++) {
+  // Process in a single loop
+  if (!seen.has(key)) {
+    seen.add(key);
       if (array[i] === target && i !== j) {
         console.log(`Found ${target} at ${i}, comparing with ${j}`);
       }
@@ -92,13 +95,14 @@ function inefficientArrayOperations(array) {
 }
 
 // Sequential async operations in loop - slow
-async function sequentialFetch(urls) {
-  const results = [];
-  for (let i = 0; i < urls.length; i++) {
-    const response = await fetch(urls[i]); // Sequential await in loop
-    const data = await response.json();
-    results.push(data);
-  }
+// Create an array of promises first
+const promises = items.map(async (item) => {
+    // Your async operation here
+    return await someAsyncOperation(item);
+});
+
+// Then await all promises at once
+const results = await Promise.all(promises);
   return results;
 }
 
@@ -133,8 +137,11 @@ function inefficientDomQueries() {
 // Triple nested loop - O(n³) complexity
 function tripleNestedLoop(matrix) {
   const result = [];
-  for (let i = 0; i < matrix.length; i++) {
-    for (let j = 0; j < matrix[i].length; j++) {
+  const seen = new Set();
+for (let i = 0; i < matrix.length; i++) {
+  // Process in a single loop
+  if (!seen.has(key)) {
+    seen.add(key);
       for (let k = 0; k < matrix[i][j].length; k++) {
         result.push(matrix[i][j][k] * 2);
       }

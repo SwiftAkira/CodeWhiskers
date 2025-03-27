@@ -183,8 +183,23 @@ class PerformanceAnalyzer {
                     const lines = code.split('\n');
                     const contextLine = lines[lineNumber - 1];
                     
+                    // Determine issue type based on pattern or category
+                    let issueType = category;
+                    
+                    // More specific type mapping for fix button functionality
+                    if (match[0].includes('for') && match[0].includes('+=')) {
+                        issueType = 'stringConcatenation';
+                    } else if (match[0].includes('for') && match[0].match(/for\s*\(.*\)\s*{\s*for/)) {
+                        issueType = 'nestedLoops';
+                    } else if (match[0].includes('document') && match[0].includes('appendChild')) {
+                        issueType = 'domOperations';
+                    } else if (match[0].includes('for') && match[0].includes('await')) {
+                        issueType = 'asyncAwait';
+                    }
+                    
                     issues.push({
                         category,
+                        type: issueType, // Add type property for fix button logic
                         description,
                         severity,
                         suggestion,
@@ -218,8 +233,12 @@ class PerformanceAnalyzer {
                         const lines = code.split('\n');
                         const contextLine = lines[lineNumber - 1];
                         
+                        // Determine React-specific issue type
+                        let issueType = 'react_' + category;
+                        
                         issues.push({
                             category: 'react_' + category,
+                            type: issueType, // Add type property for fix button logic
                             description,
                             severity,
                             suggestion,
@@ -311,6 +330,7 @@ class PerformanceAnalyzer {
             // Add an issue for each nested loop
             issues.push({
                 category: 'performance_metric',
+                type: 'nestedLoops', // Add type property for fix button
                 description: `Found ${nestedLoops} nested loops which can lead to O(n²) complexity`,
                 severity: nestedLoops > 2 ? 'high' : 'medium',
                 suggestion: 'Consider restructuring to avoid nested loops or use more efficient algorithms',
@@ -324,6 +344,7 @@ class PerformanceAnalyzer {
         if (largeArrayMatches.length > 0) {
             issues.push({
                 category: 'performance_metric',
+                type: 'largeArrays', // Add type property for fix button
                 description: 'Large array literals can impact load and parse time',
                 severity: 'medium',
                 suggestion: 'Consider loading large datasets dynamically or chunking',
@@ -337,6 +358,7 @@ class PerformanceAnalyzer {
         if (excessiveParamsMatches.length > 0) {
             issues.push({
                 category: 'performance_metric',
+                type: 'excessiveParams', // Add type property for fix button
                 description: 'Functions with many parameters can be inefficient',
                 severity: 'low',
                 suggestion: 'Use object parameters instead of many individual parameters',
@@ -365,6 +387,7 @@ class PerformanceAnalyzer {
             if (nonMemoizedCount > 2) {
                 issues.push({
                     category: 'react_optimization',
+                    type: 'nonMemoizedComponents', // Add type property for fix button
                     description: `${nonMemoizedCount} of ${componentCount} components are not memoized`,
                     severity: 'medium',
                     suggestion: 'Use React.memo for components that render often with the same props',

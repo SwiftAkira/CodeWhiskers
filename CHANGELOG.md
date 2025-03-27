@@ -2,6 +2,25 @@
 
 All notable changes to the "WhiskerCode" extension will be documented in this file.
 
+## [1.2.6] - 2024-03-27
+
+### Enhanced
+- Improved visual feedback for code fixes:
+  - Added green highlighting with "Fixed" label to changed code in the editor
+  - Added a large center-screen success indicator when fixes are applied
+  - Enhanced issue cards in the performance panel to clearly show fixed status
+  - Added animation effects to make code changes more visible
+  - Improved success messages with "Jump to Fix" action button
+  - Fixed issues now have a distinctive green styling with a "FIXED" badge
+
+## [1.2.5] - 2024-03-27
+
+### Fixed
+- Fixed "Cannot read properties of undefined (reading 'webview')" error in performance analysis
+- Fixed the "Fix Issue" buttons not working properly in the performance analysis panel
+- Added proper issue type detection to ensure fix functionality works for all fixable issue types
+- Improved error handling in the UI layer
+
 ## [1.2.4] - 2024-03-27
 
 ### Added

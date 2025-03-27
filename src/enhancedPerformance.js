@@ -232,8 +232,23 @@ class EnhancedPerformanceAnalyzer {
                     const lines = code.split('\n');
                     const contextLine = lines[lineNumber - 1].trim();
                     
+                    // Determine issue type based on pattern or category
+                    let issueType = category;
+                    
+                    // More specific type mapping for fix button functionality
+                    if (match[0].includes('for') && match[0].includes('+=')) {
+                        issueType = 'stringConcatenation';
+                    } else if (match[0].includes('for') && match[0].match(/for\s*\(.*\)\s*{\s*for/)) {
+                        issueType = 'nestedLoops';
+                    } else if (match[0].includes('document') && match[0].includes('appendChild')) {
+                        issueType = 'domOperations';
+                    } else if (match[0].includes('for') && match[0].includes('await')) {
+                        issueType = 'asyncAwait';
+                    }
+                    
                     issues.push({
                         category,
+                        type: issueType, // Add type property for fix button logic
                         description,
                         severity,
                         suggestion,

@@ -2689,6 +2689,7 @@ class UILayer {
         );
         
         panel.webview.html = this._getWebviewContent(title, content);
+        return panel; // Add this line to return the panel object
     }
     
     /**
@@ -3172,7 +3173,41 @@ const results = await Promise.all(promises);`;
             editBuilder.replace(range, fixedCode);
         }).then(success => {
             if (success) {
-                vscode.window.showInformationMessage('🐱 Fix applied successfully!');
+                // Add a decoration to highlight the changed code
+                const fixedStartPos = document.positionAt(issueStart);
+                const fixedEndPos = document.positionAt(issueStart + fixedCode.length);
+                const fixedRange = new vscode.Range(fixedStartPos, fixedEndPos);
+                
+                // Create decorations with a green background
+                const highlightDecoration = vscode.window.createTextEditorDecorationType({
+                    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+                    border: '1px solid rgba(0, 200, 0, 0.8)',
+                    borderRadius: '3px',
+                    after: {
+                        contentText: ' 🐱 Fixed',
+                        color: 'green',
+                        margin: '0 0 0 20px'
+                    }
+                });
+                
+                // Apply decoration
+                editor.setDecorations(highlightDecoration, [fixedRange]);
+                
+                // Show more prominent success message
+                vscode.window.showInformationMessage(
+                    '🐱 Code fix applied successfully! The fixed area is highlighted in green.',
+                    'Jump to Fix'
+                ).then(selection => {
+                    if (selection === 'Jump to Fix') {
+                        editor.revealRange(fixedRange, vscode.TextEditorRevealType.InCenter);
+                        editor.selection = new vscode.Selection(fixedStartPos, fixedEndPos);
+                    }
+                });
+                
+                // Remove decoration after 8 seconds
+                setTimeout(() => {
+                    highlightDecoration.dispose();
+                }, 8000);
             } else {
                 vscode.window.showErrorMessage('Failed to apply the fix.');
             }
@@ -3808,6 +3843,12 @@ const results = await Promise.all(promises);`;
                     border-radius: 4px;
                     font-weight: bold;
                     display: none;
+                    animation: flash-success 1.5s ease;
+                }
+                
+                @keyframes flash-success {
+                    0%, 100% { background-color: rgba(76, 175, 80, 0.2); }
+                    50% { background-color: rgba(76, 175, 80, 0.6); }
                 }
                 
                 .error-message {
@@ -3835,6 +3876,56 @@ const results = await Promise.all(promises);`;
                     to { transform: rotate(360deg); }
                 }
                 
+                /* New styles for better fix visibility */
+                .issue-card.fixed {
+                    border-left-color: #4CAF50 !important;
+                    background-color: rgba(76, 175, 80, 0.1);
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                .issue-card.fixed::after {
+                    content: "🐱 FIXED";
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background-color: #4CAF50;
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                
+                .fix-success-indicator {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background-color: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    text-align: center;
+                    z-index: 1000;
+                    display: none;
+                    animation: pop-in 0.5s ease-out forwards;
+                }
+                
+                @keyframes pop-in {
+                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+                    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                }
+                
+                @keyframes pop-out {
+                    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                    100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+                }
+                
+                .fix-success-indicator.hide {
+                    animation: pop-out 0.5s ease-in forwards;
+                }
             </style>
         </head>
         <body>
@@ -3871,6 +3962,13 @@ const results = await Promise.all(promises);`;
                 <div id="error-message" class="error-message">
                     <span class="fix-icon">⚠️</span> <span id="error-text">Failed to apply fix.</span>
                 </div>
+            </div>
+            
+            <!-- Add the center screen success indicator -->
+            <div id="fix-success-indicator" class="fix-success-indicator">
+                <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+                <div style="font-size: 20px; margin-bottom: 5px;">Fix Applied Successfully!</div>
+                <div style="font-size: 14px; opacity: 0.8;">The code has been updated</div>
             </div>
             
             <div class="section-tabs">
@@ -3990,6 +4088,19 @@ const results = await Promise.all(promises);`;
                             const issueCard = document.querySelector(\`.issue-card[data-issue="\${issueId}"]\`);
                             
                             if (success) {
+                                // Show large center success indicator
+                                const successIndicator = document.getElementById('fix-success-indicator');
+                                successIndicator.style.display = 'block';
+                                
+                                // Remove it after 2 seconds
+                                setTimeout(() => {
+                                    successIndicator.classList.add('hide');
+                                    setTimeout(() => {
+                                        successIndicator.style.display = 'none';
+                                        successIndicator.classList.remove('hide');
+                                    }, 500);
+                                }, 2000);
+                                
                                 // Show success message
                                 const successMessage = document.getElementById('success-message');
                                 successMessage.style.display = 'block';
@@ -4007,9 +4118,14 @@ const results = await Promise.all(promises);`;
                                     successMessage.style.display = 'none';
                                 }, 3000);
                                 
-                                // Dim the card to show it's been fixed
-                                issueCard.style.opacity = '0.7';
-                                issueCard.style.borderLeftColor = '#4CAF50';
+                                // Mark the card as fixed with visual style
+                                issueCard.classList.add('fixed');
+                                
+                                // Add a spotlight effect around the fixed card
+                                issueCard.style.boxShadow = '0 0 20px rgba(76, 175, 80, 0.8)';
+                                setTimeout(() => {
+                                    issueCard.style.boxShadow = '';
+                                }, 3000);
                             } else {
                                 // Show error message
                                 const errorMessage = document.getElementById('error-message');
